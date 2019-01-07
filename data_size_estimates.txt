@@ -1,0 +1,18 @@
+Number of data points (= non-null fields):
+
+- Income groups: 4
+- Regions: 7
+- Years: 58
+- Countries: 264, of which aggregates 47 (17,8 %)
+- CO2 emissions: 12 255, of which by aggregates ~ 2181
+- Population totals: 15 147, of which by aggregates ~2696
+
+Total: 27 735
+
+If CO2 emissions and population totals were stored 
+in a single table in different columns:  15 480
+
+If aggregates are discarded: 12 737
+
+If only data from range {1980, 2014} is included
+(with aggregates): 9494 (leaving leeway for notifies, if deleted after each row)

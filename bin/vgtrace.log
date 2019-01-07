@@ -1,0 +1,236 @@
+==2952== Memcheck, a memory error detector
+==2952== Copyright (C) 2002-2017, and GNU GPL'd, by Julian Seward et al.
+==2952== Using Valgrind-3.14.0-3a3000290b-20181009X and LibVEX; rerun with -h for copyright info
+==2952== Command: ./emiss
+==2952== 
+--2952-- Valgrind options:
+--2952--    -v
+--2952--    --track-origins=yes
+--2952--    --leak-check=full
+--2952-- Contents of /proc/version:
+--2952--   Linux version 4.20.0-arch1-1-ARCH (builduser@heftig-29859) (gcc version 8.2.1 20181127 (GCC)) #1 SMP PREEMPT Mon Dec 24 03:00:40 UTC 2018
+--2952-- 
+--2952-- Arch and hwcaps: AMD64, LittleEndian, amd64-cx16-rdtscp-sse3-avx
+--2952-- Page sizes: currently 4096, max supported 4096
+--2952-- Valgrind library directory: /usr/lib/valgrind
+--2952-- Reading syms from /home/joa/Dropbox/Public/Netbeans/emiss/bin/emiss
+--2952-- Reading syms from /usr/lib/ld-2.28.so
+--2952-- Reading syms from /usr/lib/valgrind/memcheck-amd64-linux
+--2952--    object doesn't have a dynamic symbol table
+--2952-- Scheduler: using generic scheduler lock implementation.
+--2952-- Reading suppressions file: /usr/lib/valgrind/default.supp
+==2952== embedded gdbserver: reading from /tmp/vgdb-pipe-from-vgdb-to-2952-by-joa-on-???
+==2952== embedded gdbserver: writing to   /tmp/vgdb-pipe-to-vgdb-from-2952-by-joa-on-???
+==2952== embedded gdbserver: shared mem   /tmp/vgdb-pipe-shared-mem-vgdb-2952-by-joa-on-???
+==2952== 
+==2952== TO CONTROL THIS PROCESS USING vgdb (which you probably
+==2952== don't want to do, unless you know exactly what you're doing,
+==2952== or are doing some strange experiment):
+==2952==   /usr/lib/valgrind/../../bin/vgdb --pid=2952 ...command...
+==2952== 
+==2952== TO DEBUG THIS PROCESS USING GDB: start GDB like this
+==2952==   /path/to/gdb ./emiss
+==2952== and then give GDB the following command
+==2952==   target remote | /usr/lib/valgrind/../../bin/vgdb --pid=2952
+==2952== --pid is optional if only one valgrind process is running
+==2952== 
+--2952-- REDIR: 0x401ff20 (ld-linux-x86-64.so.2:strlen) redirected to 0x580c9742 (vgPlain_amd64_linux_REDIR_FOR_strlen)
+--2952-- REDIR: 0x401fcf0 (ld-linux-x86-64.so.2:index) redirected to 0x580c975c (vgPlain_amd64_linux_REDIR_FOR_index)
+--2952-- Reading syms from /usr/lib/valgrind/vgpreload_core-amd64-linux.so
+--2952-- Reading syms from /usr/lib/valgrind/vgpreload_memcheck-amd64-linux.so
+==2952== WARNING: new redirection conflicts with existing -- ignoring it
+--2952--     old: 0x0401ff20 (strlen              ) R-> (0000.0) 0x580c9742 vgPlain_amd64_linux_REDIR_FOR_strlen
+--2952--     new: 0x0401ff20 (strlen              ) R-> (2007.0) 0x0483ad80 strlen
+--2952-- REDIR: 0x401c700 (ld-linux-x86-64.so.2:strcmp) redirected to 0x483be40 (strcmp)
+--2952-- REDIR: 0x4020480 (ld-linux-x86-64.so.2:mempcpy) redirected to 0x483f860 (mempcpy)
+--2952-- Reading syms from /usr/lib/libdl-2.28.so
+--2952--    object doesn't have a symbol table
+--2952-- Reading syms from /usr/lib/librt-2.28.so
+--2952--    object doesn't have a symbol table
+--2952-- Reading syms from /usr/lib/libpthread-2.28.so
+--2952-- Reading syms from /usr/lib/libpq.so.5.11
+--2952--    object doesn't have a symbol table
+--2952-- Reading syms from /usr/lib/libcrypto.so.1.1
+--2952--    object doesn't have a symbol table
+--2952-- Reading syms from /usr/lib/libpcre.so.1.2.10
+--2952--    object doesn't have a symbol table
+--2952-- Reading syms from /usr/lib/libcurl.so.4.5.0
+--2952--    object doesn't have a symbol table
+--2952-- Reading syms from /usr/lib/libm-2.28.so
+--2952--    object doesn't have a symbol table
+--2952-- Reading syms from /usr/lib/libc-2.28.so
+--2952-- Reading syms from /usr/lib/libssl.so.1.1
+--2952--    object doesn't have a symbol table
+--2952-- Reading syms from /usr/lib/libgssapi_krb5.so.2.2
+--2952--    object doesn't have a symbol table
+--2952-- Reading syms from /usr/lib/libldap_r-2.4.so.2.10.9
+--2952--    object doesn't have a symbol table
+--2952-- Reading syms from /usr/lib/libnghttp2.so.14.17.1
+--2952--    object doesn't have a symbol table
+--2952-- Reading syms from /usr/lib/libidn2.so.0.3.4
+--2952--    object doesn't have a symbol table
+--2952-- Reading syms from /usr/lib/libssh2.so.1.0.1
+--2952--    object doesn't have a symbol table
+--2952-- Reading syms from /usr/lib/libpsl.so.5.3.1
+--2952--    object doesn't have a symbol table
+--2952-- Reading syms from /usr/lib/libkrb5.so.3.3
+--2952--    object doesn't have a symbol table
+--2952-- Reading syms from /usr/lib/libk5crypto.so.3.1
+--2952--    object doesn't have a symbol table
+--2952-- Reading syms from /usr/lib/libcom_err.so.2.1
+--2952--    object doesn't have a symbol table
+--2952-- Reading syms from /usr/lib/libz.so.1.2.11
+--2952--    object doesn't have a symbol table
+--2952-- Reading syms from /usr/lib/libkrb5support.so.0.1
+--2952--    object doesn't have a symbol table
+--2952-- Reading syms from /usr/lib/libkeyutils.so.1.8
+--2952--    object doesn't have a symbol table
+--2952-- Reading syms from /usr/lib/libresolv-2.28.so
+--2952--    object doesn't have a symbol table
+--2952-- Reading syms from /usr/lib/liblber-2.4.so.2.10.9
+--2952--    object doesn't have a symbol table
+--2952-- Reading syms from /usr/lib/libsasl2.so.3.0.0
+--2952--    object doesn't have a symbol table
+--2952-- Reading syms from /usr/lib/libunistring.so.2.1.0
+--2952--    object doesn't have a symbol table
+--2952-- REDIR: 0x50dc060 (libc.so.6:strchrnul) redirected to 0x482d1c0 (_vgnU_ifunc_wrapper)
+--2952-- REDIR: 0x50f4800 (libc.so.6:wcslen) redirected to 0x482d1c0 (_vgnU_ifunc_wrapper)
+--2952-- REDIR: 0x50e0b10 (libc.so.6:memrchr) redirected to 0x482d1c0 (_vgnU_ifunc_wrapper)
+--2952-- REDIR: 0x50f5f90 (libc.so.6:wcsnlen) redirected to 0x482d1c0 (_vgnU_ifunc_wrapper)
+--2952-- REDIR: 0x50dab70 (libc.so.6:memcpy@@GLIBC_2.14) redirected to 0x482d1c0 (_vgnU_ifunc_wrapper)
+--2952-- REDIR: 0x50daa20 (libc.so.6:strncasecmp) redirected to 0x482d1c0 (_vgnU_ifunc_wrapper)
+--2952-- REDIR: 0x50da6c0 (libc.so.6:memmove) redirected to 0x482d1c0 (_vgnU_ifunc_wrapper)
+--2952-- REDIR: 0x50d9840 (libc.so.6:strncpy) redirected to 0x482d1c0 (_vgnU_ifunc_wrapper)
+--2952-- REDIR: 0x50da9d0 (libc.so.6:strcasecmp) redirected to 0x482d1c0 (_vgnU_ifunc_wrapper)
+--2952-- REDIR: 0x50d9210 (libc.so.6:strcat) redirected to 0x482d1c0 (_vgnU_ifunc_wrapper)
+--2952-- REDIR: 0x50d9880 (libc.so.6:rindex) redirected to 0x482d1c0 (_vgnU_ifunc_wrapper)
+--2952-- REDIR: 0x50dc030 (libc.so.6:rawmemchr) redirected to 0x482d1c0 (_vgnU_ifunc_wrapper)
+--2952-- REDIR: 0x50f4ca0 (libc.so.6:wmemchr) redirected to 0x482d1c0 (_vgnU_ifunc_wrapper)
+--2952-- REDIR: 0x50f4700 (libc.so.6:wcscmp) redirected to 0x482d1c0 (_vgnU_ifunc_wrapper)
+--2952-- REDIR: 0x50da830 (libc.so.6:mempcpy) redirected to 0x482d1c0 (_vgnU_ifunc_wrapper)
+--2952-- REDIR: 0x50da650 (libc.so.6:bcmp) redirected to 0x482d1c0 (_vgnU_ifunc_wrapper)
+--2952-- REDIR: 0x50d97e0 (libc.so.6:strncmp) redirected to 0x482d1c0 (_vgnU_ifunc_wrapper)
+--2952-- REDIR: 0x50d9290 (libc.so.6:strcmp) redirected to 0x482d1c0 (_vgnU_ifunc_wrapper)
+--2952-- REDIR: 0x50da790 (libc.so.6:memset) redirected to 0x482d1c0 (_vgnU_ifunc_wrapper)
+--2952-- REDIR: 0x50f46d0 (libc.so.6:wcschr) redirected to 0x482d1c0 (_vgnU_ifunc_wrapper)
+--2952-- REDIR: 0x50d9770 (libc.so.6:strnlen) redirected to 0x482d1c0 (_vgnU_ifunc_wrapper)
+--2952-- REDIR: 0x50d9340 (libc.so.6:strcspn) redirected to 0x482d1c0 (_vgnU_ifunc_wrapper)
+--2952-- REDIR: 0x50d9300 (libc.so.6:strcpy) redirected to 0x482d1c0 (_vgnU_ifunc_wrapper)
+--2952-- REDIR: 0x50d98b0 (libc.so.6:strpbrk) redirected to 0x482d1c0 (_vgnU_ifunc_wrapper)
+--2952-- REDIR: 0x50d9250 (libc.so.6:index) redirected to 0x482d1c0 (_vgnU_ifunc_wrapper)
+--2952-- REDIR: 0x50d9740 (libc.so.6:strlen) redirected to 0x482d1c0 (_vgnU_ifunc_wrapper)
+--2952-- REDIR: 0x50daa70 (libc.so.6:strcasecmp_l) redirected to 0x482d1c0 (_vgnU_ifunc_wrapper)
+--2952-- REDIR: 0x50da620 (libc.so.6:memchr) redirected to 0x482d1c0 (_vgnU_ifunc_wrapper)
+--2952-- REDIR: 0x50d9b70 (libc.so.6:strspn) redirected to 0x482d1c0 (_vgnU_ifunc_wrapper)
+--2952-- REDIR: 0x50da990 (libc.so.6:stpncpy) redirected to 0x482d1c0 (_vgnU_ifunc_wrapper)
+--2952-- REDIR: 0x50da950 (libc.so.6:stpcpy) redirected to 0x482d1c0 (_vgnU_ifunc_wrapper)
+--2952-- REDIR: 0x50daac0 (libc.so.6:strncasecmp_l) redirected to 0x482d1c0 (_vgnU_ifunc_wrapper)
+--2952-- REDIR: 0x50d97a0 (libc.so.6:strncat) redirected to 0x482d1c0 (_vgnU_ifunc_wrapper)
+--2952-- REDIR: 0x515a450 (libc.so.6:__memmove_chk) redirected to 0x482d1c0 (_vgnU_ifunc_wrapper)
+--2952-- REDIR: 0x50da540 (libc.so.6:strstr) redirected to 0x482d1c0 (_vgnU_ifunc_wrapper)
+--2952-- REDIR: 0x515a380 (libc.so.6:__memcpy_chk) redirected to 0x482d1c0 (_vgnU_ifunc_wrapper)
+==2952== WARNING: new redirection conflicts with existing -- ignoring it
+--2952--     old: 0x050f3a10 (__memcpy_chk_sse2_un) R-> (2024.0) 0x0483f320 __memmove_chk
+--2952--     new: 0x050f3a10 (__memcpy_chk_sse2_un) R-> (2030.0) 0x0483f950 __memcpy_chk
+==2952== WARNING: new redirection conflicts with existing -- ignoring it
+--2952--     old: 0x050f3a10 (__memcpy_chk_sse2_un) R-> (2024.0) 0x0483f320 __memmove_chk
+--2952--     new: 0x050f3a10 (__memcpy_chk_sse2_un) R-> (2030.0) 0x0483f950 __memcpy_chk
+==2952== WARNING: new redirection conflicts with existing -- ignoring it
+--2952--     old: 0x050f3a10 (__memcpy_chk_sse2_un) R-> (2024.0) 0x0483f320 __memmove_chk
+--2952--     new: 0x050f3a10 (__memcpy_chk_sse2_un) R-> (2030.0) 0x0483f950 __memcpy_chk
+==2952== WARNING: new redirection conflicts with existing -- ignoring it
+--2952--     old: 0x050f3a10 (__memcpy_chk_sse2_un) R-> (2024.0) 0x0483f320 __memmove_chk
+--2952--     new: 0x050f3a10 (__memcpy_chk_sse2_un) R-> (2030.0) 0x0483f950 __memcpy_chk
+==2952== WARNING: new redirection conflicts with existing -- ignoring it
+--2952--     old: 0x050f3a10 (__memcpy_chk_sse2_un) R-> (2024.0) 0x0483f320 __memmove_chk
+--2952--     new: 0x050f3a10 (__memcpy_chk_sse2_un) R-> (2030.0) 0x0483f950 __memcpy_chk
+==2952== WARNING: new redirection conflicts with existing -- ignoring it
+--2952--     old: 0x050f3a10 (__memcpy_chk_sse2_un) R-> (2024.0) 0x0483f320 __memmove_chk
+--2952--     new: 0x050f3a10 (__memcpy_chk_sse2_un) R-> (2030.0) 0x0483f950 __memcpy_chk
+==2952== WARNING: new redirection conflicts with existing -- ignoring it
+--2952--     old: 0x050f3a10 (__memcpy_chk_sse2_un) R-> (2024.0) 0x0483f320 __memmove_chk
+--2952--     new: 0x050f3a10 (__memcpy_chk_sse2_un) R-> (2030.0) 0x0483f950 __memcpy_chk
+==2952== WARNING: new redirection conflicts with existing -- ignoring it
+--2952--     old: 0x050f3a10 (__memcpy_chk_sse2_un) R-> (2024.0) 0x0483f320 __memmove_chk
+--2952--     new: 0x050f3a10 (__memcpy_chk_sse2_un) R-> (2030.0) 0x0483f950 __memcpy_chk
+==2952== WARNING: new redirection conflicts with existing -- ignoring it
+--2952--     old: 0x050f3a10 (__memcpy_chk_sse2_un) R-> (2024.0) 0x0483f320 __memmove_chk
+--2952--     new: 0x050f3a10 (__memcpy_chk_sse2_un) R-> (2030.0) 0x0483f950 __memcpy_chk
+==2952== WARNING: new redirection conflicts with existing -- ignoring it
+--2952--     old: 0x050f3a10 (__memcpy_chk_sse2_un) R-> (2024.0) 0x0483f320 __memmove_chk
+--2952--     new: 0x050f3a10 (__memcpy_chk_sse2_un) R-> (2030.0) 0x0483f950 __memcpy_chk
+--2952-- REDIR: 0x50e9810 (libc.so.6:__strrchr_sse2) redirected to 0x483a7d0 (__strrchr_sse2)
+--2952-- REDIR: 0x50e9b10 (libc.so.6:__strlen_sse2) redirected to 0x483acc0 (__strlen_sse2)
+--2952-- REDIR: 0x50d58d0 (libc.so.6:malloc) redirected to 0x4837710 (malloc)
+--2952-- REDIR: 0x50d66b0 (libc.so.6:calloc) redirected to 0x4839ab0 (calloc)
+--2952-- REDIR: 0x51a5cb0 (libc.so.6:__strncmp_sse42) redirected to 0x483b560 (__strncmp_sse42)
+--2952-- REDIR: 0x50e9600 (libc.so.6:__strchrnul_sse2) redirected to 0x483f390 (strchrnul)
+--2952-- REDIR: 0x50f3a00 (libc.so.6:__mempcpy_sse2_unaligned) redirected to 0x483f4a0 (mempcpy)
+--2952-- REDIR: 0x50f3a20 (libc.so.6:memcpy@GLIBC_2.2.5) redirected to 0x483bfa0 (memcpy@GLIBC_2.2.5)
+--2952-- REDIR: 0x50e2300 (libc.so.6:__strcmp_sse2_unaligned) redirected to 0x483bd00 (strcmp)
+--2952-- REDIR: 0x50d5f20 (libc.so.6:free) redirected to 0x4838940 (free)
+--2952-- REDIR: 0x50e93d0 (libc.so.6:__strchr_sse2) redirected to 0x483a8b0 (__strchr_sse2)
+--2952-- REDIR: 0x50da0a0 (libc.so.6:__GI_strstr) redirected to 0x483fac0 (__strstr_sse2)
+--2952-- REDIR: 0x50e3e10 (libc.so.6:__memchr_sse2) redirected to 0x483bee0 (memchr)
+--2952-- REDIR: 0x51ad750 (libc.so.6:__strncasecmp_avx) redirected to 0x483b690 (strncasecmp)
+--2952-- REDIR: 0x50f0090 (libc.so.6:__stpcpy_sse2_unaligned) redirected to 0x483e3f0 (__stpcpy_sse2_unaligned)
+--2952-- Reading syms from /usr/lib/libnss_files-2.28.so
+--2952--    object doesn't have a symbol table
+--2952-- REDIR: 0x50eea50 (libc.so.6:__strcpy_sse2_unaligned) redirected to 0x483adb0 (strcpy)
+--2952-- REDIR: 0x51aa990 (libc.so.6:__strpbrk_sse42) redirected to 0x483fba0 (strpbrk)
+--2952-- REDIR: 0x51ac0d0 (libc.so.6:__strcasecmp_avx) redirected to 0x483b5d0 (strcasecmp)
+--2952-- REDIR: 0x50f3e50 (libc.so.6:__memset_sse2_unaligned) redirected to 0x483e790 (memset)
+--2952-- Reading syms from /usr/lib/libnss_mymachines.so.2
+--2952--    object doesn't have a symbol table
+==2952== WARNING: new redirection conflicts with existing -- ignoring it
+--2952--     old: 0x050f3a10 (__memcpy_chk_sse2_un) R-> (2024.0) 0x0483f320 __memmove_chk
+--2952--     new: 0x050f3a10 (__memcpy_chk_sse2_un) R-> (2030.0) 0x0483f950 __memcpy_chk
+--2952-- Reading syms from /usr/lib/libnss_myhostname.so.2
+--2952--    object doesn't have a symbol table
+--2952-- Reading syms from /usr/lib/libnss_resolve.so.2
+--2952--    object doesn't have a symbol table
+==2952== WARNING: new redirection conflicts with existing -- ignoring it
+--2952--     old: 0x050f3a10 (__memcpy_chk_sse2_un) R-> (2024.0) 0x0483f320 __memmove_chk
+--2952--     new: 0x050f3a10 (__memcpy_chk_sse2_un) R-> (2030.0) 0x0483f950 __memcpy_chk
+--2952-- REDIR: 0x50d6180 (libc.so.6:realloc) redirected to 0x4839d00 (realloc)
+--2952-- REDIR: 0x50ef080 (libc.so.6:__strncpy_sse2_unaligned) redirected to 0x483b2e0 (__strncpy_sse2_unaligned)
+--2952-- REDIR: 0x51b1ad0 (libc.so.6:__memcmp_sse4_1) redirected to 0x483dfd0 (__memcmp_sse4_1)
+--2952-- Reading syms from /usr/lib/libnss_dns-2.28.so
+--2952--    object doesn't have a symbol table
+--2952-- REDIR: 0x50f3a10 (libc.so.6:__memcpy_chk_sse2_unaligned) redirected to 0x483f320 (__memmove_chk)
+--2952-- REDIR: 0x50e4140 (libc.so.6:__rawmemchr_sse2) redirected to 0x483f3c0 (rawmemchr)
+--2952-- REDIR: 0x50f1aa0 (libc.so.6:__strcat_sse2_unaligned) redirected to 0x483a940 (strcat)
+--2952-- REDIR: 0x51aa810 (libc.so.6:__strcspn_sse42) redirected to 0x483fc00 (strcspn)
+--2952-- REDIR: 0x50f3340 (libc.so.6:__strstr_sse2_unaligned) redirected to 0x483fa50 (strstr)
+http IPv4 connection on port 0
+asdf
+template count: 3
+asdf
+SERVER EXITING.
+Server stopped without errors.
+--2952-- Discarding syms at 0x70e8020-0x70ee71c in /usr/lib/libnss_files-2.28.so (have_dinfo 1)
+--2952-- Discarding syms at 0x719a020-0x719d348 in /usr/lib/libnss_dns-2.28.so (have_dinfo 1)
+==2952== 
+==2952== HEAP SUMMARY:
+==2952==     in use at exit: 10,257 bytes in 16 blocks
+==2952==   total heap usage: 49,562 allocs, 49,546 frees, 16,169,654 bytes allocated
+==2952== 
+==2952== Searching for pointers to 16 not-freed blocks
+==2952== Checked 308,152 bytes
+==2952== 
+==2952== 5,120 bytes in 1 blocks are definitely lost in loss record 8 of 8
+==2952==    at 0x4839B65: calloc (vg_replace_malloc.c:752)
+==2952==    by 0x1612FE: emiss_init_resource_ctx (in /home/joa/Dropbox/Public/Netbeans/emiss/bin/emiss)
+==2952==    by 0x16255F: main (in /home/joa/Dropbox/Public/Netbeans/emiss/bin/emiss)
+==2952== 
+==2952== LEAK SUMMARY:
+==2952==    definitely lost: 5,120 bytes in 1 blocks
+==2952==    indirectly lost: 0 bytes in 0 blocks
+==2952==      possibly lost: 0 bytes in 0 blocks
+==2952==    still reachable: 5,137 bytes in 15 blocks
+==2952==         suppressed: 0 bytes in 0 blocks
+==2952== Reachable blocks (those to which a pointer was found) are not shown.
+==2952== To see them, rerun with: --leak-check=full --show-leak-kinds=all
+==2952== 
+==2952== ERROR SUMMARY: 1 errors from 1 contexts (suppressed: 0 from 0)
+==2952== ERROR SUMMARY: 1 errors from 1 contexts (suppressed: 0 from 0)

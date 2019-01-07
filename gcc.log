@@ -1,0 +1,54 @@
+gcc -O0 -pthread -rdynamic -I/usr/local/include -I/usr/include/postgresql -Isrc -Iinclude -std=c11 -pedantic -fstack-protector -Wstack-protector -Wall -Wextra  src/dependencies/civetweb.c src/dependencies/zip.c src/dependencies/bstrlib.c src/dependencies/libcsv.c src/lcsv_w.c src/psql-db.c src/emiss_update.c src/emiss_retrieve.c src/emiss_resource.c src/emiss_server.c src/emiss.c -o bin/emiss -ldl -lrt -lpthread -lpq -lcrypto -lpcre -lcurl -lm -L/usr/local/lib -L/postgresql 
+src/lcsv_w.c: In function ‘callback_row’:
+src/lcsv_w.c:220:18: warning: unused parameter ‘terminator’ [-Wunused-parameter]
+ callback_row(int terminator, void *init_ptr)
+              ~~~~^~~~~~~~~~
+src/lcsv_w.c: In function ‘callback_row_preview’:
+src/lcsv_w.c:233:26: warning: unused parameter ‘terminator’ [-Wunused-parameter]
+ callback_row_preview(int terminator, void *init_ptr)
+                      ~~~~^~~~~~~~~~
+src/psql-db.c:138:1: warning: ‘create_prepared_stmt’ defined but not used [-Wunused-function]
+ create_prepared_stmt(PGconn *conn, const char *stmt)
+ ^~~~~~~~~~~~~~~~~~~~
+src/emiss_update.c: In function ‘callback_country_code_data_header’:
+src/emiss_update.c:114:55: warning: unused parameter ‘len’ [-Wunused-parameter]
+ callback_country_code_data_header(void *field, size_t len, void *data)
+                                                ~~~~~~~^~~
+src/emiss_update.c: In function ‘callback_year’:
+src/emiss_update.c:138:35: warning: unused parameter ‘len’ [-Wunused-parameter]
+ callback_year(void *field, size_t len, void *data)
+                            ~~~~~~~^~~
+src/emiss_update.c: In function ‘callback_world_data’:
+src/emiss_update.c:335:41: warning: unused parameter ‘len’ [-Wunused-parameter]
+ callback_world_data(void *field, size_t len, void *data)
+                                  ~~~~~~~^~~
+src/emiss_update.c: In function ‘callback_world’:
+src/emiss_update.c:367:22: warning: unused parameter ‘field’ [-Wunused-parameter]
+ callback_world(void *field, size_t len, void *data)
+                ~~~~~~^~~~~
+src/emiss_update.c:367:36: warning: unused parameter ‘len’ [-Wunused-parameter]
+ callback_world(void *field, size_t len, void *data)
+                             ~~~~~~~^~~
+src/emiss_resource.c: In function ‘format_map_chart_data’:
+src/emiss_resource.c:300:34: warning: unused parameter ‘year’ [-Wunused-parameter]
+     uint8_t dataset_id, unsigned year, void *cbdata)
+                         ~~~~~~~~~^~~~
+src/emiss_resource.c: In function ‘forward_to_format’:
+src/emiss_resource.c:477:60: warning: unused parameter ‘i’ [-Wunused-parameter]
+ forward_to_format(emiss_template_st *template_data, size_t i,
+                                                     ~~~~~~~^
+src/emiss_server.c: In function ‘log_message’:
+src/emiss_server.c:53:41: warning: unused parameter ‘conn’ [-Wunused-parameter]
+ log_message(const struct mg_connection *conn, const char *message)
+             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~
+src/emiss_server.c: In function ‘emiss_conn_printf_function’:
+src/emiss_server.c:72:18: warning: unused parameter ‘http_response_code’ [-Wunused-parameter]
+     const signed http_response_code,
+     ~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~
+src/emiss.c: In function ‘main’:
+src/emiss.c:5:10: warning: unused parameter ‘argc’ [-Wunused-parameter]
+ main(int argc, const char *argv[]) {
+      ~~~~^~~~
+src/emiss.c:5:28: warning: unused parameter ‘argv’ [-Wunused-parameter]
+ main(int argc, const char *argv[]) {
+                ~~~~~~~~~~~~^~~~~~

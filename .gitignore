@@ -1,0 +1,4 @@
+./depr
+./Procfile
+./resources/css/.sass-lint.yml
+./resources/css/old.*

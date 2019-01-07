@@ -1,0 +1,232 @@
+http IPv4 connection on port 0
+[ERROR] (src/psql-db.c:129: errno: None) [libpq]: no connection to the server
+.
+[ERROR] (src/psql-db.c:270: errno: None) [PSQL-DB]: Failed sending query to database [see query below].
+UPDATE Year SET world_co2emissions=24059187 WHERE year=1998;
+[ERROR] (src/psql-db.c:129: errno: None) [libpq]: no connection to the server
+.
+[ERROR] (src/psql-db.c:270: errno: None) [PSQL-DB]: Failed sending query to database [see query below].
+UPDATE Year SET world_co2emissions=25276631 WHERE year=2000;
+[ERROR] (src/psql-db.c:129: errno: None) [libpq]: no connection to the server
+.
+[ERROR] (src/psql-db.c:270: errno: None) [PSQL-DB]: Failed sending query to database [see query below].
+UPDATE Year SET world_co2emissions=27047792 WHERE year=2002;
+[ERROR] (src/psql-db.c:129: errno: None) [libpq]: no connection to the server
+.
+[ERROR] (src/psql-db.c:270: errno: None) [PSQL-DB]: Failed sending query to database [see query below].
+UPDATE Year SET world_co2emissions=25646998 WHERE year=2001;
+[ERROR] (src/psql-db.c:129: errno: None) [libpq]: no connection to the server
+.
+[ERROR] (src/psql-db.c:270: errno: None) [PSQL-DB]: Failed sending query to database [see query below].
+UPDATE Year SET world_co2emissions=28393581 WHERE year=2003;
+[ERROR] (src/psql-db.c:129: errno: None) [libpq]: no connection to the server
+.
+[ERROR] (src/psql-db.c:270: errno: None) [PSQL-DB]: Failed sending query to database [see query below].
+UPDATE Year SET world_co2emissions=30568112 WHERE year=2005;
+[ERROR] (src/psql-db.c:129: errno: None) [libpq]: no connection to the server
+.
+[ERROR] (src/psql-db.c:270: errno: None) [PSQL-DB]: Failed sending query to database [see query below].
+UPDATE Year SET world_co2emissions=29490014 WHERE year=2004;
+[ERROR] (src/psql-db.c:129: errno: None) [libpq]: no connection to the server
+.
+[ERROR] (src/psql-db.c:270: errno: None) [PSQL-DB]: Failed sending query to database [see query below].
+UPDATE Year SET world_co2emissions=32181592 WHERE year=2007;
+[ERROR] (src/psql-db.c:129: errno: None) [libpq]: no connection to the server
+.
+[ERROR] (src/psql-db.c:270: errno: None) [PSQL-DB]: Failed sending query to database [see query below].
+UPDATE Year SET world_co2emissions=31180501 WHERE year=2006;
+[ERROR] (src/psql-db.c:129: errno: None) [libpq]: no connection to the server
+.
+[ERROR] (src/psql-db.c:270: errno: None) [PSQL-DB]: Failed sending query to database [see query below].
+UPDATE Year SET world_co2emissions=33472376 WHERE year=2009;
+[ERROR] (src/psql-db.c:129: errno: None) [libpq]: no connection to the server
+.
+[ERROR] (src/psql-db.c:270: errno: None) [PSQL-DB]: Failed sending query to database [see query below].
+UPDATE Year SET world_co2emissions=31891899 WHERE year=2008;
+[ERROR] (src/psql-db.c:129: errno: None) [libpq]: no connection to the server
+.
+[ERROR] (src/psql-db.c:270: errno: None) [PSQL-DB]: Failed sending query to database [see query below].
+UPDATE Year SET world_co2emissions=35470891 WHERE year=2011;
+[ERROR] (src/psql-db.c:129: errno: None) [libpq]: no connection to the server
+.
+[ERROR] (src/psql-db.c:270: errno: None) [PSQL-DB]: Failed sending query to database [see query below].
+UPDATE Year SET world_co2emissions=35837591 WHERE year=2012;
+[ERROR] (src/psql-db.c:129: errno: None) [libpq]: no connection to the server
+.
+[ERROR] (src/psql-db.c:270: errno: None) [PSQL-DB]: Failed sending query to database [see query below].
+UPDATE Year SET world_co2emissions=36138285 WHERE year=2013;
+[ERROR] (src/psql-db.c:129: errno: None) [libpq]: no connection to the server
+.
+[ERROR] (src/psql-db.c:270: errno: None) [PSQL-DB]: Failed sending query to database [see query below].
+UPDATE Year SET world_co2emissions=34847501 WHERE year=2010;
+[ERROR] (src/psql-db.c:129: errno: None) [libpq]: no connection to the server
+.
+[ERROR] (src/psql-db.c:252: errno: None) [PSQL-DB]: Failed sending a prioritized command INSERT INTO Country (code, name) VALUES ('WSM', $$Samoa$$);.
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 11 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 11 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 11 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 11 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 11 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 11 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 11 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 11 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 11 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 11 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 11 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 11 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 11 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 11 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 11 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 10 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 10 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 10 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 10 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 10 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 10 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 10 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 10 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 10 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 10 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 10 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 10 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 10 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 10 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 10 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 9 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 9 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 9 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 9 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 9 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 9 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 9 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 9 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 9 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 9 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 9 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 9 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 9 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 9 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 9 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 8 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 8 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 8 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 8 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 8 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 8 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 8 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 8 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 8 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 8 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 8 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 8 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 8 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 8 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 8 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 7 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 7 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 7 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 7 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 7 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 7 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 7 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 7 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 7 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 7 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 7 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 7 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 7 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 7 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 7 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 6 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 6 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 6 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 6 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 6 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 6 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 6 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 6 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 6 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 6 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 6 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 6 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 6 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 6 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 6 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 5 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 5 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 5 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 5 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 5 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 5 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 5 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 5 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 5 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 5 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 5 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 5 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 5 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 5 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 5 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 4 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 4 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 4 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 4 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 4 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 4 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 4 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 4 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 4 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 4 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 4 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 4 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 4 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 4 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 4 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 3 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 3 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 3 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 3 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 3 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 3 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 3 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 3 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 3 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 3 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 3 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 3 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 3 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 3 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 3 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 2 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 2 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 2 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 2 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 2 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 2 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 2 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 2 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 2 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 2 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 2 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 2 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 2 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 2 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 2 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 1 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 1 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 1 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 1 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 1 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 1 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 1 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 1 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 1 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 1 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 1 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 1 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 1 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 1 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 1 attempts left
+[WARN] (src/psql-db.c:94: errno: None) poll timeout occured, 0 attempts left
+[ERROR] (src/psql-db.c:109: errno: None) [PSQL-DB]: Failed too many timeouts polling.
+[1]    1579 segmentation fault (core dumped)  ./emiss
