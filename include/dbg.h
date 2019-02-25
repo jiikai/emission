@@ -1,10 +1,11 @@
-/*
-    This header is almost identical to the "dbg.h" from Zed Shaw's "Learn C The Hard Way",
-    expect for:
+/*  @file       dbg.h
+    @brief      A set of debug macros.
 
-    1)  Substitution of the GCC extension ##__VA_ARGS__ with the plain standard-compliant
-        __VA_ARGS__ macro.
-    2)  Removal of check_mem(A), a specific memory-checking version of check(A, M, ...).
+    This header is almost identical to the "dbg.h" from Zed Shaw's "Learn C The
+    Hard Way", expect for:
+
+    1)  Substitution of the GCC extension `##__VA_ARGS__` with the standard `__VA_ARGS__` macro.
+    2)  Removal of check_mem(A), a convenience version of check(A, M, ...) for memory errors.
     3)  Addition of error message templates.
     4)  Some code reformatting.
     5)  Allowing the user to #define DBG_STREAM, making it possible to direct output to a stream
@@ -36,7 +37,7 @@
                 __FILE__, TOSTRING(__LINE__), __VA_ARGS__)
 #endif
 
-#define clean_errno() (errno == 0 ? "None" : strerror(errno))
+#define clean_errno() (!errno ? "None" : strerror(errno))
 
 #define log_err(M, ...) fprintf(stderr,\
             "[ERROR] (%s:%s: errno: %s) " M "\n",\
@@ -77,7 +78,7 @@
 
 #define ERR_MEM "[%s]: Out of memory."
 #define ERR_FAIL "[%s]: Failed %s."
-#define ERR_FAIL_N "[%s]: Failed %s # %d"
+#define ERR_FAIL_N "[%s]: Failed %s # %u"
 #define ERR_FAIL_A "[%s]: Failed %s %s."
 #define ERR_IMPRO "[%s]: Improper %s (got %d)."
 #define ERR_INVAL "[%s]: Invalid %s (got %d)."
@@ -86,59 +87,4 @@
 #define ERR_NALLOW_A "[%s] %s not allowed, use %s instead."
 #define ERR_EXTERN "[%s]: %s."
 #define ERR_EXTERN_AT "[%s]: %s (%d)."
-/*
-
-#define ALEN0(\
-        _00, _01, _02, _03, _04, _05, _06, _07,\
-        _08, _09, _0A, _0B, _0C, _0D, _0E, _0F,\
-        _10, _11, _12, _13, _14, _15, _16, _17,\
-        _18, _19, _1A, _1B, _1C, _1D, _1E, _1F,\
-        ...)\
-    _1F
-
-#define ALEN(...)\
-    ALEN0(__VA_ARGS__,\
-        0x1F, 0x1E, 0x1D, 0x1C, 0x1B, 0x1A, 0x19, 0x18,\
-        0x17, 0x16, 0x15, 0x14, 0x13, 0x12, 0x11, 0x10,\
-        0x0F, 0x0E, 0x0D, 0x0C, 0x0B, 0x0A, 0x09, 0x08,\
-        0x07, 0x06, 0x05, 0x04, 0x03, 0x02, 0x01, 0x00)
-
-#define TRACE_VALUES0(NARGS, EXPR, FMRT, ...)\
-    do {\
-        if (NARGS > 1) {\
-            trace_values(stderr,\
-                __FILE__, TOSTRING(__LINE__),\
-                "" EXPR "", "" FRMT "", NARGS,\
-                (const long double[NARGS]){__VA_ARGS__});\
-        } else {\
-            fprintf(stderr, "%s:" __FILE__ "" TOSTRING(__LINE__) " %s\n", FRMT);\
-        }\
-    } while(0)
-
-#define TRACE_VALUES(...)\
-    TRACE_VALUES0(ALEN(__VA_ARGS__)),\
-        #__VA_ARGS__,\
-        __VA_ARGS__,\
-        0)
-
-inline void
-trace_skip(const char *expr)
-{
-
-}
-
-inline void
-trace_values(FILE *stream,
-    const char *file, const char *line,
-    const char *expr, const char *frmt,
-    size_t len, const long double arr[len])
-{
-    fprintf(stream, "(%s:%s:[%s] %s %Lg\n",
-        file, line, trace_skip(expr), frmt, arr[0]);
-    for (size_t i = 1; i < len - 1; ++i) {
-        fprintf(stream, ", %Lg", arr[i]);
-    }
-    fputc('\n', stream);
-}
-*/
 #endif

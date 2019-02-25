@@ -1,6 +1,11 @@
 #ifndef _emiss_
 #define _emiss_
 
+/*! @file  emiss.h "include/emiss.h"
+    @version 0.1.0
+    @brief An interface to the Emission API.
+*/
+
 #define __STDC_WANT_LIB_EXT1__ 1
 #define _POSIX_C_SOURCE 200112L
 #define _XOPEN_SOURCE 700
@@ -9,7 +14,6 @@
 ** INCLUDES
 */
 
-#include <stdalign.h>
 #include <stdarg.h>
 #include <stdatomic.h>
 #include <stddef.h>
@@ -22,10 +26,10 @@
 
 #include <sys/time.h>
 
+#include "bstrlib.h"
 #include "civetweb.h"
 #include "dbg.h"
-#include "bstrlib.h"
-#include "psql-db.h"
+#include "wlpq.h"
 
 #ifdef _WIN32
     #include <windows.h>
@@ -39,14 +43,10 @@
 ** MACRO CONSTANTS
 */
 
-/* For specifying aligment of elements in structs. */
-#define SYS_MAX_ALIGNMENT alignof(max_align_t)
-#define __MAX_ALIGNED alignas(SYS_MAX_ALIGNMENT)
-
-/*  Error message provider name. */
+/*! Error message provider name. */
 #define EMISS_ERR "EMISSION"
 #define EMISS_MSG EMISS_ERR
-/*  Remote data update interval, default 1 week. */
+/*! Remote data update interval, defaults to 1 week. */
 #ifndef EMISS_UPDATE_INTERVAL
     #define EMISS_UPDATE_INTERVAL 604800
 #endif
@@ -77,138 +77,104 @@
     #define EMISS_WORLDBANK_QSTR_DOWNLOAD_FORMAT "downloadformat=csv"
 #endif
 
-/*  Current number of indicators/datasets tracked in the database. */
+/*!  Current number of indicators/datasets tracked in the database. */
 #define EMISS_NINDICATORS 3
 
-/*  Indicators provided by Worldbank date back to 1960. */
+/*!  Indicators provided by Worldbank date back to 1960. */
 #define EMISS_DATA_STARTS_FROM 1960
 /*  However, due to limitations of the hobby-dev db in Heroku (10 000 rows),
-    we need to cut some stuff out. */
+     we need to cut some stuff out. */
 #ifndef EMISS_YEAR_ZERO
-    #define EMISS_YEAR_ZERO 1980
+    #define EMISS_YEAR_ZERO 1980 // TODO EDIT THIS
 #endif
-/*  Both YEAR_ZERO and YEAR_LAST can be changed by passing a #define at compile time in CFLAGS. */
+/*  Both YEAR_ZERO and YEAR_LAST can be changed by a #define at compile time in CFLAGS. */
 #ifndef EMISS_YEAR_LAST
-    #define EMISS_YEAR_LAST 2014
+    #define EMISS_YEAR_LAST 2014 // TODO EDIT THIS
 #endif
-/*  Currently, data ends at 2017. */
+/*!  Currently, data provided by Worldbank ends at 2017. */
 #define EMISS_DATA_ENDS_AT 2017
 
-/*  Dataset names for retrieval of indicators and numeric IDs for them. */
+/*! Dataset names for retrieval of indicators and numeric IDs for them.
 
-/*  The first one is not sourced from Worldbank, but from the following dataset repository:
-        https://raw.githubusercontent.com/datasets/country-codes/master/data/country-codes.csv
-    It is needed to provide a mapping from the three-letter country codes used by Worldbank to the
-    two letter ones used by the js library tui.chart that is used to draw the graphs client-side.
-*/
+    @def DATASET_0 is not sourced from Worldbank, but from the following repository:
+
+    https://raw.githubusercontent.com/datasets/country-codes/master/data/country-codes.csv
+
+    It is needed to provide a mapping from the three-letter ISO codes used by Worldbank to
+    the two letter ones used by the tui.chart graph library.
+
+    @def DATASET_META references metadata common to Worldbank indicator files.
+
+    Others reference actual Worldbank indicator codenames.
+*////@{
 #define DATASET_COUNTRY_CODES 0
 #define DATASET_0_NAME "country-codes"
-
-/*  The below reference actual Worldbank indicator names. */
 #define DATASET_CO2E 1
 #define DATASET_1_NAME "EN.ATM.CO2E.KT"
 #define DATASET_POPT 2
 #define DATASET_2_NAME "SP.POP.TOTL"
-/*  ---> if indicators are added in the future, their names and ids will be placed here <--- */
-
-/*  A special dataset id (== max value of 1 byte integer) and name for the country-specific
-    metadata included with the Worldbank indicator csv files.
-*/
+/*  --> if any indicators are added in the future, their names and ids will be here <-- */
 #define DATASET_META 0xFF
 #define DATASET_META_NAME "Meta"
+///@}
 
-/*  Currently, there are ~260 "Country or Area" entries in the data, a portion of which are
-    either aggregates of many countries or not independent.
+/*! Number of "country slots."
 
-    300 different country slots for arrays holding country-related data ought to be enough
-    for the foreseeable future.
+    Currently, there are ~260 "Country or Area" entries in the data, a portion of which are
+    either aggregates of many countries or not independent. 300 different country slots for arrays
+    holding country-related data ought to be enough for the foreseeable future.
 */
 #define NCOUNTRY_DATA_SLOTS 300
 
-/*  A PCRE regex to pick out fields that are not to be included as rows in the database. */
+/*! A PCRE regex to pick out fields that are not to be included as rows in the database. */
 #define EMISS_IGNORE_REGEX\
     "((Country|Indicator)( Code| Name))"\
     "|(Population.*|CO2 emissions.*|Region|IncomeGroup|SpecialNotes|WLD|INX|Not classified)"\
     "|(\\w+\\.\\w+\\.\\w+)"
 
-/*  File path prefixes. */
+/*! File path prefixes. *////@{
 #define EMISS_RESOURCE_ROOT "../resources"
 #define EMISS_DATA_ROOT EMISS_RESOURCE_ROOT"/data"
 #define EMISS_JS_ROOT EMISS_RESOURCE_ROOT"/js"
-#define EMISS_HTML_ROOT EMISS_RESOURCE_ROOT"/html"
+#define EMISS_HTML_ROOT EMISS_RESOURCE_ROOT
 #define EMISS_CSS_ROOT EMISS_RESOURCE_ROOT"/css"
+#define EMISS_FONT_ROOT EMISS_RESOURCE_ROOT"/fonts"
+///@}
 
-#define EMISS_NSTATICS 3  /* index.html, new.html, chart_params.js */
-#define EMISS_NTEMPLATES 3 /* show.html, line_chart.js, map_chart.js */
+/*! Number of static assets. */
+#define EMISS_NSTATICS 4
+/*! Number of template assets. */
+#define EMISS_NTEMPLATES 2
+/*! Required size for a buffer holding comma separated years in string format. */
 #define EMISS_SIZEOF_FORMATTED_YEARDATA (EMISS_YEAR_LAST - EMISS_YEAR_ZERO) * 7 + 1
 
-/* All currently valid relative URIs on the server. */
+/*! All relative URIs available on the server. *////@{
 #define EMISS_URI_INDEX "/"
 #define EMISS_URI_EXIT "/exit"
 #define EMISS_URI_NEW "/new"
-#define EMISS_URI_CHART "/show"
+#define EMISS_URI_SHOW "/show"
 #define EMISS_URI_ABOUT "/about"
-#define EMISS_URI_STYLE_CSS "/css/style.css"
-//#define EMISS_FONT_URI "/fonts"
-#define EMISS_URI_CHART_PARAM_JS "/js/chart_params.js"
-#define EMISS_URI_LINE_CHART_JS "/js/line_chart.js"
-#define EMISS_URI_MAP_CHART_JS "/js/map_chart.js"
+#define EMISS_URI_STYLE_CSS "/css/all.min.css"
+#define EMISS_URI_FONTS "/fonts"
+#define EMISS_FONT_SANS "fira-sans-v8"
+#define EMISS_VALID_FONT_NAMES EMISS_FONT_SANS"-latin-regular"
 
 
-/*  Options for the CivetWeb server. */
-#define NUM_THREADS "64"
-#define DOCUMENT_ROOT "../resources"
-#ifdef HEROKU
-    #define EMISS_SERVER_PORT getenv("PORT")
-    #define EMISS_SERVER_HOST "emiss.herokuapp.com"
-    #define EMISS_SERVER_PROTOCOL_PREFIX "https://"
-    #define EMISS_ABS_ROOT_URL "https://emiss.herokuapp.com"
-
-#else
-    #ifndef EMISS_SERVER_PORT
-        #define EMISS_SERVER_PORT "8080"
-    #endif
-    #ifndef EMISS_SERVER_HOST
-        #define EMISS_SERVER_HOST "localhost"
-    #endif
-    #define EMISS_SERVER_PROTOCOL_PREFIX "http://"
-    #define EMISS_ABS_ROOT_URL "http://joa-p702a:8080"
-#endif
-#define REQUEST_TIMEOUT "30000"
-#define AUTH_DOM_CHECK "no"
-
-/*  Keep-alive options if WITH_KEEP_ALIVE_SUPPORT #defined at compile-time */
-#ifdef WITH_KEEP_ALIVE_SUPPORT
-    #define KEEP_ALIVE_SUPPORT\
-        "additional_header", "Connection: Keep-Alive",\
-        "tcp_nodelay", "1",\
-        "enable_keep-alive", "1",\
-        "keep_alive_timeout_ms", REQUEST_TIMEOUT
-#else
-    #define KEEP_ALIVE_SUPPORT\
-        "enable_keep_alive", "0"
-#endif
-
-#define HTTP_RES_200_ARGS "HTTP/1.1 200 OK\r\nContent-Type: %s\r\nConnection: %s\r\n\r\n"
-#define HTTP_RES_200 "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nConnection: close\r\n\r\n"
-#define HTTP_RES_404 "HTTP/1.1 404 Not Found\r\nConnection: close\r\n\r\n"
-#define HTTP_RES_405 "HTTP/1.1 405 Method Not Allowed\r\nAllow: GET\r\nConnection: close\r\n\r\n"
-#define HTTP_RES_405_ARGS "HTTP/1.1 405 Method Not Allowed\r\nAllow: %s\r\nConnection: close\r\n\r\n"
-#define HTTP_RES_500 "HTTP/1.1 500 Internal Server Error\r\nConnection: close\r\n\r\n"
+#define EMISS_URI_CHART_JS "/js/chart.js"
+#define EMISS_URI_PARAM_JS "/js/param.js"
+#define EMISS_URI_VERGE_JS "/js/verge.min.js"
+///@}
 
 /*
 **  FUNCTION MACROS
 */
 
-#define STRINGIFY(A) #A
-#define TOSTRING(A) STRINGIFY(A)
-
 #define GET_LAST_DATA_ACCESS(arg)\
     do {\
         char *ptr;\
-        arg = (time_t) strtoul(getenv("LAST_DATA_ACCESS"), &ptr, 10);\
-        check(arg != ULONG_MAX, ERR_FAIL_A, EMISS_ERR,\
-            "converting string to unsigned long:", "integer overflow");\
+        arg = (time_t) strtol(getenv("LAST_DATA_ACCESS"), &ptr, 10);\
+        check(arg != LONG_MAX, ERR_FAIL_A, EMISS_ERR,\
+            "converting string to long:", "integer overflow");\
     } while (0)
 
 #define UPDATE_LAST_DATA_ACCESS(arg)\
@@ -216,7 +182,7 @@
         check(time(&arg) != -1, ERR_FAIL, EMISS_ERR,\
             "obtaining current time in seconds");\
         char buf[65] = {0};\
-        sprintf(buf, "%lu", (unsigned long) arg);\
+        snprintf(buf, 64, "%ld", (long) arg);\
         setenv("LAST_DATA_ACCESS", buf, 1);\
     } while (0)
 
@@ -224,197 +190,76 @@
 #define SIZE_IN_BYTES(object)\
     ((uintmax_t) sizeof(object) * (sizeof(size_t) / sizeof(uint8_t)))
 
-#define HTTP_CONTENT_LENGTH_TO_STR(body, str_out)\
-    sprintf(str_out, "Content-Length: %lu", (uintmax_t) SIZE_IN_BYTES(body))
-
-/*  Port protocol getter expression. */
-#define DEFINE_PROTOCOL(server, i)\
-    (server->civet_ports[i].is_ssl ? "https" : "http")
-
-/*  Macros for formatting SQL statements. */
-
-#define SQL_PREPARE_INSERT_INTO(output, stmt_name, types, table, columns, ...)\
-    sprintf(output, "PREPARE %s (%s) AS INSERT INTO %s (%s) VALUES (%s);",\
-        stmt_name, types, table, columns, __VA_ARGS__)
-
-#define SQL_PREPARE_UPDATE_WHERE(output, stmt_name, types, table, columns, ...)\
-    sprintf(output, "PREPARE %s (%s) AS UPDATE %s SET %s WHERE %s;",\
-        stmt_name, types, table, columns, __VA_ARGS__)
-
-#define SQL_SELECT(buffer, output, columns, aliases, tables, ...)\
-    sprintf(buffer, "SELECT %s AS %s FROM %s;", columns, aliases, tables);\
-    sprintf(output, buffer, __VA_ARGS__)
-
-#define SQL_SELECT_WHERE(buffer, output, columns, aliases, tables, where, ...)\
-    sprintf(buffer, "SELECT %s AS %s FROM %s WHERE %s;", columns, aliases, tables, where);\
-    sprintf(output, buffer, __VA_ARGS__)
-
-#define SQL_INSERT_INTO(buffer, output, table, columns, values, ...)\
-    sprintf(buffer, "INSERT INTO %s (%s) VALUES (%s);", table, columns, values);\
-    sprintf(output, buffer, __VA_ARGS__)
-
-#define SQL_UPDATE_WHERE(buffer, output, table, set, where, ...)\
-    sprintf(buffer, "UPDATE %s SET %s WHERE %s;", table, set, where);\
-    sprintf(output, buffer, __VA_ARGS__)
-
-#define SQL_UPSERT(buffer, output, insertsql, arbiter, set, ...)\
-    sprintf(buffer, "%s ON CONFLICT (%s) DO UPDATE SET %s;", insertsql, arbiter, set);\
-    sprintf(output, buffer, __VA_ARGS__)
-
-#define SQL_WITH_SELECT_WHERE(buffer, output, with_table,\
-        columns, aliases, from_tables, where, ...)\
-    sprintf(buffer, "WITH %s AS (SELECT %s AS %s FROM %s WHERE %s)",\
-        with_table, columns, aliases, from_tables, where);\
-    sprintf(output, buffer, __VA_ARGS__)
-
-#define SQL_APPEND_WITH_SELECT_WHERE(buffer, output, sql, with_table,\
-        columns, aliases, from_tables, where, ...)\
-    sprintf(buffer, "%s, %s AS (SELECT %s AS %s FROM %s WHERE %s)",\
-        sql, with_table, columns, aliases, from_tables, where);\
-    sprintf(output, buffer, __VA_ARGS__)
-
-#define SQL_UPDATE_WITH_WHERE(buffer, output, withsql, table, set, where, ...)\
-    sprintf(buffer, "%s UPDATE %s SET %s WHERE %s;", withsql, table, set, where);\
-    sprintf(output, buffer, __VA_ARGS__)
-
-#define SQL_WHEN_THEN_ELSE(buffer, output, condition, sql_1, sql_2, ...)\
-    sprintf(buffer, "CASE WHEN %s THEN %s ELSE %s;");\
-    sprintf(output, buffer, __VA_ARGS__)
-
-/*  Macros for formatting JSON entries. */
-
-#define JSON_DATA_ENTRY_BY_CODE(output, iso2_code, value, append)\
-    do {\
-        char *frmt = append ? ",{code:'%s',data:%s}" : "{code:'%s',data:%s}";\
-        sprintf(output, frmt, iso2_code, value);\
-    } while (0)
-
-#define JSON_DATA_ENTRY_BY_NAME(output, name, value, append)\
-    do {\
-        char *frmt = append ? ",{name:'%s',data:[%s]}" : "{name:'%s',data:[%s]}";\
-        sprintf(output, frmt, name, value);\
-    } while (0)
-
-#define FRMT_JSON_ENTRY(output, buffer, append, key_name, val_name, ...)\
-    do {\
-        char *frmt = append ? ",{%s:%s}" : "{%s:%s}";\
-        sprintf(buffer, frmt, key_name, val_name);\
-        sprintf(output, buffer, __VA_ARGS__);\
-    } while (0)
-
-#define JSON_SYNTACTIC_LENGTH(key_name, value_name)\
-    strlen(key_name) + strlen(value_name) + 10
-/*  e.g.  strlen("code")       == 4
-        + strlen("data")       == 4
-        + strlen(",{:'',:[]}") == 10
-                               == 18    */
-
-/*  Expands to arguments for a format string specifying the js for producing line charts. */
-#define LINE_CHART_PARAMS(ydata, cdata, dataset, per_capita)\
-    ydata, cdata, CHOOSE_LINE_CHART_TITLE(dataset, per_capita),\
-    CHOOSE_Y_AXIS_TITLE(dataset, per_capita), CHOOSE_SUFFIX(dataset, per_capita)
-
-#define MAP_CHART_COUNTRYDATA_SIZE(ncountries)\
-    (2 * ncountries * JSON_SYNTACTIC_LENGTH("code", "data") + ncountries * 0x10)
-
-#define LINE_CHART_COUNTRYDATA_SIZE(ncountries, names_bytelen, ndatapoints)\
-    (names_bytelen + ncountries * JSON_SYNTACTIC_LENGTH("name", "data") + ndatapoints * 0x10)
-
-/*  Ugly but useful conditional operator expressions. */
-#define CHOOSE_COL(dataset, per_capita)\
-    (dataset == DATASET_CO2E && per_capita ?\
-        "round(((emission_kt/population_total) * 1000000)::numeric, 3), country_code" :\
-    dataset == DATASET_CO2E ? "emission_kt, country_code" : "population_total, country_code")
-
-
-#define CHOOSE_ALIAS(dataset, per_capita)\
-    (dataset == DATASET_CO2E && per_capita ? "emission_kg_per_capita" :\
-    dataset == DATASET_CO2E ? "emission_kt" : "population_total")
-
-#define CHOOSE_WHERE_CLAUSE(from, to)\
-    (from < to ?\
-        "country_code='%s' AND yeardata_year>=%d AND yeardata_year<=%d ORDER BY yeardata_year" :\
-        "yeardata_year=%d ORDER BY country_code")
-
-#define CHOOSE_SUFFIX(dataset, per_capita)\
-    (dataset == DATASET_CO2E && per_capita ? "kg/person" :\
-    dataset == DATASET_CO2E ? "kt" : "")
-
-#define CHOOSE_Y_AXIS_TITLE(dataset, per_capita)\
-    (dataset == DATASET_CO2E && per_capita ?\
-        "CO2 emissions in kilograms per capita (kg/person)" :\
-    dataset == DATASET_CO2E ?\
-        "CO2 emissions in kilotonnes (kt)" :\
-        "Population count, total")
-
-#define CHOOSE_LINE_CHART_TITLE(dataset, per_capita)\
-    (dataset == DATASET_CO2E && per_capita ?\
-        "CO2 emissions in kilograms per capita (kg/person)" :\
-    dataset == DATASET_CO2E ?\
-        "Carbon dioxide emissions, total by country and year" :\
-        "Population by country and year")
-
-#define CHOOSE_MAP_CHART_TITLE_FRMT(dataset, per_capita)\
-    dataset == DATASET_CO2E && per_capita ?\
-        "Carbon dioxide emissions, year %u, per capita (kg) by country." :\
-    dataset == DATASET_CO2E ?\
-        "Carbon dioxide emissions, year %u, total (kt) by country.":\
-        "Population, year %u, total by country."
 
 /*  Formats a HTML option to a buffer for a datalist with country ids and values. */
 #define FRMT_HTML_OPTION_ID_VALUE(buffer, type, id, value, newline)\
-    sprintf(buffer, "<option class=\"opt-cntr-type-%s\" id=\"%s\" value=\"%s\"></option>%s",\
-        type, id, value, (newline ? "\n" : ""))
+    sprintf(buffer, "<option class=\"opt-cntr-type-%s\" id=\"%s\" value=\"%s\">%s</option>%s",\
+        type, id, value, value, (newline ? "\n" : ""))
+
+#define FRMT_HTML_OPTION_YEAR "<option id=\"f%u\" value=\"%u\">%u</option>\n"
 
 /*
-** TYPE DEFINITIONS/DECLARATIONS
+** TYPEDEFS AND STRUCTS
 */
 
-/*  Parser and uploader context structure declaration and type. Defined in emiss_upload.c. */
+/*! An opaque handle for the parser and data uploader context struct.
+    Implemented in emiss_upload.c.
+*/
 typedef struct emiss_update_ctx emiss_update_ctx_st;
 
-/*  Declaration & typedef of a document template structure. Defined as a transparent
-    structure below.
+/*! Type of a document template structure.
+    Defined as a transparent structure below.
 */
 typedef struct emiss_template_s emiss_template_st;
 
-/*  A context structure declaration and typedef. Defined in emiss_resource.c. */
+/* An opaque handle for the data retrieval and format context struct.
+    Implemented in emiss_resource.c.
+*/
 typedef struct emiss_resource_ctx emiss_resource_ctx_st;
 
 /*  Function typesdefs. Used in the context of the template structure declared above and
     defined below.
 */
-typedef int (emiss_printfio_ft)(void *at, const signed http_response_code,
-    const char *mime_type, const char *conn_action, const char *restrict frmt, ...);
-typedef int (emiss_template_ft)(emiss_template_st *template_data, size_t i,
-    const char *qstr, void *cbdata);
-/*  For use with bsearch() */
+typedef int (emiss_printfio_ft)(void *at,
+    const unsigned http_response_code,
+    const uintmax_t byte_size,
+    const char *restrict mime_type,
+    const char *restrict conn_action,
+    const char *restrict frmt,...);
+
+typedef int (emiss_template_ft)(emiss_template_st *template_data,
+    size_t i, const char *qstr, void *cbdata);
+
+/*!  For use with bsearch() */
 typedef int (emiss_compar_ft)(const void *a, const void *b);
 
-/*  Definition of the template structure declared above. */
-typedef struct emiss_template_s {
+/*!  Definition of the template structure declared above. */
+struct emiss_template_s {
     emiss_resource_ctx_st          *rsrc_ctx;
     char                            template_name[EMISS_NTEMPLATES][0x10];
     emiss_template_ft              *template_function[EMISS_NTEMPLATES];
     int                             template_count;
     emiss_printfio_ft              *output_function;
-} emiss_template_st;
+};
 
-/*  Opaque server context structure declaration. Implemented in emiss_server.c. */
-
+/*! An opaque handle for the server context structure.
+    Implemented in emiss_server.c.
+*/
 typedef struct emiss_server_ctx emiss_server_ctx_st;
 
 /*
 ** FUNCTION PROTOTYPES & INLINE FUNCTION DEFINITIONS
 */
 
-/*  "emiss_retrieve.c":
-*/
+/*  "emiss_retrieve.c" */
 
-/*  int emiss_should_check_for_update():
-    Query the environment variable 'LAST_DATA_ACCESS' for the last time data was downloaded from
-    remote source. If less than EMISS_UPDATE_INTERVAL (see header emiss.h), return 0, if equal to
-    or greater than, return 1. Return -1 on error.
+/*! Check the timestamp of last data retrieval.
+
+    Queries the environment variable 'LAST_DATA_ACCESS' for the last time data was downloaded from
+    a remote source. An inline function.
+
+    @return If less than EMISS_UPDATE_INTERVAL, 0, if equal to or greater, 1, on error, -1.
+    @see emiss_retrieve_data(), EMISS_UPDATE_INTERVAL
 */
 inline int
 emiss_should_check_for_update()
@@ -431,48 +276,99 @@ error:
     return -1;
 }
 
-/*  [TODO DOCUMENTATION HERE] */
+/*! Fetch data from a remote source [TODO elaboration] and decompress all files if they zipped.
+
+    @return 1 on success, 0 on error.
+
+    @see emiss_should_check_for_update()
+*/
 int
 emiss_retrieve_data();
 
-/*  "emiss_update.c":
+/*  "emiss_update.c" */
+
+/*! Allocate and initialize the data parser & updater context structure.
+
+    @param tui_chart_worldmap_data_path [TODO]
+    @param tui_chart_worldmap_data_size [TODO]
+
+    @return The initialized data update context structure or NULL on error.
+
+    @see emiss_free_update_ctx()
 */
-
-/*  Allocator/initializer. */
 emiss_update_ctx_st *
-emiss_init_update_ctx(char *tui_chart_worldmap_data_path, uintmax_t tui_chart_worldmap_data_size);
+emiss_init_update_ctx(char *tui_chart_worldmap_data_path);
 
-/*  Deallocator/cleaner. */
+/*! Deallocate the data parser & updater context structure.
+
+    @param upd_ctx An initialized data update context structure.
+
+    @see emiss_init_update_ctx()
+*/
 void
 emiss_free_update_ctx(emiss_update_ctx_st *upd_ctx);
 
-/*  Preview csv files and check "Last updated" information.
-    If newer than last_update, update records in the database
-    concerning the data in that file. For data of type "Meta",
-    run an update if any other update is run (Worldbank sadly
-    does not annotate their metadata files with dates).
+/*! Preview csv files and check "Last updated" information from the Worldbank data files, if newer
+    than @a last_update, update records in the database concerning the data in that file.
+
+    For data of type "Meta", run an update in case any other update is run. Worldbank
+    sadly does not annotate their metadata csv files with dates.
+
+    @param upd_ctx      An initialized data update context structure.
+    @param paths        A string array containing paths to the csv data files.
+    @param file_sizes   The total byte size of each respective csv file.
+    @param npaths       The number of csv files in paths.
+    @param dataset_ids  An array of integer codes that can be used to control how the file data is
+                        to be interpreted [TODO elaboration]
+
+    @return Size in bytes of all parsed data or -1 on error.
+
+    @see emiss_free_update_ctx(), emiss_init_update_ctx()
 */
 size_t
 emiss_parse_and_update(emiss_update_ctx_st *upd_ctx,
     char **paths, uintmax_t *file_sizes, size_t npaths,
     int *dataset_ids, time_t last_update);
 
-/*  "emiss_prepare.c":
-*/
+/*  "emiss_resource.c" */
 
-/*  Allocator/initializer for resource context structure. */
+/*! Allocator/initializer for resource context structure.
+
+    @return The initialized resource context structure or NULL on error.
+
+    @see emiss_free_resource_ctx()
+*/
 emiss_resource_ctx_st *
 emiss_init_resource_ctx();
 
-/*  Deallocator/cleaner for resource context structure. */
+/*! Deallocator/cleaner for resource context structure.
+
+    @param template_data An initialized resource context structure.
+
+    @see emiss_init_resource_ctx()
+*/
 void
 emiss_free_resource_ctx();
 
-/*  Allocator/initializer for document template data structure. */
+/*!  Allocator/initializer for document template data structure.
+
+    @param rsrc_ctx An initialized resource context structure.
+
+    @return The initialized document template data structure or NULL on error.
+
+    @see emiss_free_template_structure(), emiss_init_resource_ctx(), emiss_free_resource_ctx()
+*/
 emiss_template_st *
 emiss_construct_template_structure(emiss_resource_ctx_st *rsrc_ctx);
 
-/*  Deallocator/cleaner for document template data structure. */
+/*! Deallocator/cleaner or document template data structure.
+
+    Function implemented as inline.
+
+    @param template_data An initialized document template data structure.
+
+    @see emiss_construct_template_structure(), emiss_init_resource_ctx(), emiss_free_resource_ctx()
+*/
 inline void
 emiss_free_template_structure(emiss_template_st *template_data)
 {
@@ -481,21 +377,62 @@ emiss_free_template_structure(emiss_template_st *template_data)
     }
 }
 
+/*! Return a pointer to a static asset stored in memory.
+
+    @param rsrc_ctx: An initialized resource context structure.
+    @param The index of the resource.
+
+    @return A pointer to the resource or NULL on any error.
+
+    @see emiss_init_resource_ctx(), emiss_free_resource_ctx(), emiss_get_static_resource_size()
+*/
 char *
 emiss_get_static_resource(emiss_resource_ctx_st *rsrc_ctx, size_t i);
 
-/*  "emiss_server.c":
-*/
+/*! Return the size in bytes of a static asset stored in memory.
 
-/*  Allocator/initializer for server context structure. */
+    @param rsrc_ctx: An initialized resource context structure.
+    @param The index of the resource.
+
+    @return The byte size as a positive integer or 0 on any error.
+
+    @see emiss_init_resource_ctx(), emiss_free_resource_ctx(), emiss_get_static_resource()
+*/
+size_t
+emiss_get_static_resource_size(emiss_resource_ctx_st *rsrc_ctx, size_t i);
+
+/*  "emiss_server.c" */
+
+/*! Allocator and initializer for server context structure.
+
+    @param template_data    An array of page template objects, only necessary if dynamic content is
+                            to be served.
+
+    @return A pointer to the initialized structure or NULL on any error.
+
+    @see emiss_free_server_ctx, emiss_server_run()
+*/
 emiss_server_ctx_st *
 emiss_init_server_ctx(emiss_template_st *template_data);
 
-/*  Deallocator/cleaner for resource context structure. */
+/*! Deallocator and cleaner for server context structure.
+
+    @param server_ctx An initialized server structure.
+
+    @see emiss_init_server_ctx(), emiss_server_run()
+*/
 void
 emiss_free_server_ctx(emiss_server_ctx_st *server_ctx);
 
-/*  Run server in an event loop until a terminating signal/request is received. */
+/*! Run server in an event loop until a terminating signal/request is received.
+
+    @param server_ctx An initialized server structure.
+
+    @return EXIT_SUCCESS on a succesful exit, EXIT_FAILURE if any errors occured in server
+    startup, operation or cleanup.
+
+    @see emiss_free_server_ctx, emiss_init_server_ctx()
+*/
 int
 emiss_server_run(emiss_server_ctx_st *server_ctx);
 

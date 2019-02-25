@@ -7,15 +7,15 @@ LOGDIR := log
 LIBDIR := lib
 TESTDIR := test
 PREFIX := /usr/local
-INCLUDE := -I$(PREFIX)/include -I/usr/include/postgresql -Isrc -Iinclude
+INCLUDE := -I$(PREFIX)/include -I/usr/include/postgresql -Isrc -Iinclude -Iinclude/dep
 LIBINCLUDE := -L$(PREFIX)/lib -L/postgresql
 STD := -std=c11 -pedantic
 STACK := -fstack-protector -Wstack-protector
 # ^^or: -fstack-protector-all (extra protection)
 WARNS := -Wall -Wextra
 DEBUG := -g
-CFLAGS := -O0 -pthread -rdynamic $(INCLUDE) $(STD) $(STACK) $(WARNS) $(OPTFLAGS)
-LIBS := -ldl -lrt -lpthread -lpq -lcrypto -lpcre -lcurl -lm $(LIBINCLUDE) $(OPTLIBS)
+CFLAGS := -pthread -rdynamic $(INCLUDE) $(STD) $(STACK) $(WARNS) $(OPTFLAGS)
+LIBS := -g -ldl -lrt -lpthread -lpq -lcrypto -lpcre -lcurl -lm $(LIBINCLUDE) $(OPTLIBS)
 TESTLIBS := $(LIBS) -lcurl -L/curl
 SRCS := $(wildcard $(SRCDIR)/**/*.c $(SRCDIR)/*.c)
 TEST_SRCS= $(wildcard $(TESTDIR)/*_test.c)
@@ -31,7 +31,7 @@ TEST_BINS := $(patsubst %.c,%,$(TEST_SRCS))
 default: all
 
 all: $(BINDIR)
-	$(CC) $(CFLAGS) src/dependencies/civetweb.c src/dependencies/zip.c src/dependencies/bstrlib.c src/dependencies/libcsv.c src/lcsv_w.c src/psql-db.c src/emiss_update.c src/emiss_retrieve.c src/emiss_resource.c src/emiss_server.c src/emiss.c -o $(MAIN_BINS) $(LIBS)
+	$(CC) $(CFLAGS) -O2 src/dep/civetweb.c src/dep/zip.c src/dep/bstrlib.c src/dep/libcsv.c src/wlcsv.c src/wlpq.c src/emiss_update.c src/emiss_retrieve.c src/emiss_resource.c src/emiss_server.c src/emiss.c -o $(MAIN_BINS) $(LIBS)
 
 $(BINDIR):
 	mkdir $@

@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <title>Emission: show chart</title>
+    <meta name="description" content=""></meta>
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no"/>
+    <!--<link rel="manifest" href="site.webmanifest">-->
+    <!-- tui.chart css (CDN) -->
+    <link rel="stylesheet" href="https://uicdn.toast.com/tui.chart/latest/tui-chart.min.css">
+    <!-- local CSS -->
+    <link rel="stylesheet" type="text/css" href="./css/all.min.css">
+    <!-- tui.chart js (CDN) -->
+    <script type="application/javascript"
+            src="https://uicdn.toast.com/tui.chart/latest/tui-chart-all.min.js" defer>
+    </script>
+    <script type="application/javascript"
+            src="https://uicdn.toast.com/tui.chart/latest/maps/world.js" defer>
+    </script>
+    <!-- locally provided scripts -->
+    <!--<script type="application/javascript" src "./js/verge.min.js" defer></script>-->
+    <script type="application/javascript" src="./js/chart.js?%s" defer></script>
+  </head>
+  <body>
+    <header id="luxbar" class="luxbar-fixed">
+      <input type="checkbox" class="luxbar-checkbox" id="luxbar-checkbox"/>
+      <div class="luxbar-menu luxbar-menu-left luxbar-menu-material-bluegrey">
+        <ul class="luxbar-navigation">
+            <li class="luxbar-header">
+                <label class="luxbar-hamburger luxbar-hamburger-doublespin"
+                id="luxbar-hamburger" for="luxbar-checkbox"> <span></span> </label>
+            </li>
+            <li class="luxbar-item"><a href="/index">Home</a></li>
+            <li class="luxbar-item"><a href="/new">New</a></li>
+            <li class="luxbar-item"><a href="/about">About</a></li>
+        </ul>
+      </div>
+    </header>
+    <div class="vspace"></div>
+    <div id="chart-area"></div>
+    <span id="not-found-msg" class="not_found_msg"></span>
+    <form action="/new" method="GET">
+      <div class="container-button-row">
+        <button title="Generate another chart with a different set of parameters"
+                class="button-blk greater" type="submit">Generate another chart
+        </button>
+      </div>
+    </form>
+  </body>
+</html>

@@ -10,7 +10,7 @@
 #include <pcre.h>
 
 #include "zip.h"
-#include "curlopts.h"
+#include "util_curlopts.h"
 
 /*
 **  TYPES
@@ -44,11 +44,11 @@ emiss_should_check_for_update();
 
 /*  STATIC DEFINITIONS */
 
-/*  decompress_to_disk():
-        Extract zip archive from path 'src_file' to a folder 'dest_path', excluding
-    entries with a filename matching 'ignore_rgx' while saving the uncompressed
+/*  decompress_to_disk(): Extracts a zip archive from path 'src_file' to a folder 'dest_path',
+    excluding entries with a filename matching 'ignore_rgx' while saving the uncompressed
     size in bytes of all extracted files at 'file_size'.
-        Return count of extracted files i.e. size of 'file_size' or -1 on error.
+
+    Returns the count of extracted files i.e. size of 'file_size' or -1 on error.
 */
 static int
 decompress_to_disk(char *src_file, char *dest_folder,
@@ -76,9 +76,9 @@ decompress_to_disk(char *src_file, char *dest_folder,
         if (ret < 0) {
             check(ret == PCRE_ERROR_NOMATCH, ERR_EXTERN_AT, "PCRE",
                 "matching error", ret);
-            char buf[0xFF];
+            char buf[0x500];
             char *filename = strstr(entry_name, "Meta") ? "Meta" : src_file;
-            sprintf(buf, "%s/%s.csv", dest_folder, filename);
+            snprintf(buf, 0x4FF, "%s/%s.csv", dest_folder, filename);
             ret = zip_entry_fread(zip, buf);
             check(ret == 0, ERR_EXTERN_AT, "zip.h",
                 "error writing archive entry to file", i);
@@ -126,13 +126,15 @@ fetch_from_remote(char const **protocols, char const **hosts,
     char const **uris, char const **query_strings, char const **resources,
     uintmax_t *file_sizes, size_t nitems)
 {
-    struct file_metadata *filedata = calloc(1, sizeof(struct file_metadata));
+    FILE *fp_hdr = NULL, *fp_body = NULL;
+    struct file_metadata *filedata = NULL;
+    CURL *curl = NULL;
+    filedata = calloc(1, sizeof(struct file_metadata));
     check(filedata, ERR_MEM, EMISS_ERR);
-    CURL *curl;
+
     CURLcode res;
     char curl_err[CURL_ERROR_SIZE];
-    FILE *fp_body = NULL;
-    FILE *fp_hdr = NULL;
+
     curl = curl_easy_init();
     check(curl, ERR_EXTERN, "CURL",
         "something went wrong initializing libcurl handle");
@@ -150,6 +152,7 @@ fetch_from_remote(char const **protocols, char const **hosts,
     size_t i = 0;
     int ret = 0;
     do  {
+        fp_hdr = NULL, fp_body = NULL;
         filedata->byte_size = 0;
         char path[0xFF];
         const char *resource = resources[i];
@@ -212,21 +215,18 @@ emiss_retrieve_data()
 {
     /*  Protocol to use (http or https). */
     char const *protocols[] = {
-        EMISS_TUI_CHART_MAPS_CDN_HOST_PROTOCOL,
         EMISS_COUNTRY_CODES_HOST_PROTOCOL,
         EMISS_WORLDBANK_HOST_PROTOCOL,
         EMISS_WORLDBANK_HOST_PROTOCOL
     };
     /*  Host base address. */
     char const *hosts[] = {
-        EMISS_TUI_CHART_MAPS_CDN_HOST,
         EMISS_COUNTRY_CODES_HOST,
         EMISS_WORLDBANK_HOST,
         EMISS_WORLDBANK_HOST
     };
     /*  Local URI relative to host address. */
     char const *uris[] = {
-        EMISS_TUI_CHART_CDN_MAPS_REL_URI,
         EMISS_COUNTRY_CODES_REL_URI,
         EMISS_WORLDBANK_REL_URI,
         EMISS_WORLDBANK_REL_URI
@@ -234,28 +234,25 @@ emiss_retrieve_data()
     /*  An optional query string. */
     char const *query_strings[] = {
         NULL,
-        NULL,
         EMISS_WORLDBANK_QSTR_DOWNLOAD_FORMAT,
         EMISS_WORLDBANK_QSTR_DOWNLOAD_FORMAT
     };
     /*  The particular resource (dataset) we are interested in. */
     char const *resources[] = {
-        "world.js",
         DATASET_0_NAME".csv",
         DATASET_1_NAME,
         DATASET_2_NAME
     };
-    uintmax_t file_sizes[5] = {0UL};
+    uintmax_t file_sizes[4] = {0UL};
     /*  Retrieve remote data (compressed). */
     int ret = fetch_from_remote(protocols,
                 hosts, uris, query_strings,
-                resources, file_sizes, EMISS_NINDICATORS + 1);
-    check(ret == EMISS_NINDICATORS + 1, ERR_FAIL, EMISS_ERR,
+                resources, file_sizes, EMISS_NINDICATORS);
+    check(ret == EMISS_NINDICATORS, ERR_FAIL, EMISS_ERR,
         "fetching data from the server");
 
     /*  Extract only files with names not matching these regular expressions. */
     char *exclusion_rgxs[] = {
-        NULL,
         NULL,
         /*  Metadata about individual indicators is not currently stored. */
         "Metadata_Indicator",
@@ -267,7 +264,7 @@ emiss_retrieve_data()
     /*  Decompress data retrieved from Worldbank and store uncompressed
         sizes at file_sizes.
     */
-    size_t i = 2;
+    size_t i = 1;
     size_t j = i;
     do {
         pcre *regex;
@@ -279,7 +276,7 @@ emiss_retrieve_data()
         j += filecount;
         pcre_free(regex);
         remove(path);
-    } while (++i < EMISS_NINDICATORS + 1);
+    } while (++i < EMISS_NINDICATORS);
 
     /*  Parse the extracted csv files at 'paths' with dataset codes in 'dataset_ids' and
     value of LAST_DATA_ACCESS environment/configuration variable.
@@ -300,23 +297,21 @@ emiss_retrieve_data()
     };
     time_t last_update;
     GET_LAST_DATA_ACCESS(last_update);
-    printf("%lu\n%lu\n%lu\n%lu\n%lu\n\n",
-        file_sizes[0], file_sizes[1], file_sizes[2], file_sizes[3], file_sizes[4]);
-    emiss_update_ctx_st *upd_ctx = emiss_init_update_ctx("../resources/js/world.js", file_sizes[0]);
-    check(upd_ctx, ERR_FAIL, EMISS_ERR,
-        "initializing data update context structure");
-    file_sizes[3] = file_sizes[4];
-    file_sizes[4] = 0UL;
+    emiss_update_ctx_st *upd_ctx = emiss_init_update_ctx("../resources/data/in_tui_chart_map.txt");
+    check(upd_ctx, ERR_FAIL, EMISS_ERR, "initializing update context structure");
+    uintmax_t tmp = file_sizes[2];
+    file_sizes[2] = file_sizes[3];
+    file_sizes[3] = tmp;
     ret = emiss_parse_and_update(upd_ctx, paths,
-            &file_sizes[1], 4, dataset_ids,
+            file_sizes, 4, dataset_ids,
             last_update);
     check(ret != -1, ERR_FAIL, EMISS_ERR, "processing csv data");
     /*  Log update status to console, save the time to
         LAST_DATA_ACCESS and return.
     */
     struct tm update_time_utc;
-    char time_str_buf[0xFF];
-    strftime(time_str_buf, 0x100, "%F",
+    char time_str_buf[0x100];
+    strftime(time_str_buf, 0xFF, "%F",
         gmtime_r(&last_update, &update_time_utc));
     if (!ret) {
         fprintf(stdout, "Data (last checked at %s) was already up to date.",

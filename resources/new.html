@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <title>Emission: new chart</title>
+    <meta name="description" content="A web app for visualizing data provided by Worldbank."/>
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no"/>
+    <!--<link rel="manifest" href="site.webmanifest">-->
+    <!-- DNS prefetch -->
+    <link rel="dns-prefetch" href="//use.fontawesome.com">
+    <link rel="dns-prefetch" href="//code.jquery.com">
+    <link rel="dns-prefetch" href="//uicdn.toast.com">
+    <!-- Local CSS -->
+    <link rel="stylesheet" type="text/css" href="./css/all.min.css">
+    <!-- Fontawesome CSS (CDN)  -->
+    <link rel="stylesheet" type="text/css"
+          href="https://use.fontawesome.com/releases/v5.6.3/css/all.css"
+          integrity="sha384-UHRtZLI+pbxtHCWp1t77Bi1L4ZtiqrqD80Kn4Z8NTSRyMA2Fd33n5dQ8lWUE00s/"
+          crossorigin="anonymous">
+    <!-- jQuery (CDN) -->
+    <script type="application/javascript" src="https://code.jquery.com/jquery-3.3.1.slim.min.js"
+            integrity="sha256-3edrmyuQ0w65f8gfBsqowzjJe2iM6n0nKciPUp8y+7E="
+            crossorigin="anonymous" defer>
+    </script>
+    <!-- Local script -->
+    <script type="application/javascript" src="./js/param.js" defer></script>
+  </head>
+  <body>
+    <header id="luxbar" class="luxbar-fixed">
+      <input type="checkbox" class="luxbar-checkbox" id="luxbar-checkbox"/>
+      <div class="luxbar-menu luxbar-menu-left luxbar-menu-material-bluegrey">
+        <ul class="luxbar-navigation">
+            <li class="luxbar-header">
+                <label class="luxbar-hamburger luxbar-hamburger-doublespin"
+                id="luxbar-hamburger" for="luxbar-checkbox"> <span></span> </label>
+            </li>
+            <li class="luxbar-item"><a href="/index">Home</a></li>
+            <li class="luxbar-item"><a href="/new">New</a></li>
+            <li class="luxbar-item"><a href="/about">About</a></li>
+        </ul>
+      </div>
+    </header>
+    <div class="vspace"></div>
+    <form action="/show" method="GET">
+      <fieldset class="fieldset-chart-params">
+        <div class="wrapper-blk">
+          <div class="container-select-blk select-data-type">
+              <select title="Select the dataset you are interested in."
+                      id="choice-data-type" name="data_type" size="1" required>
+                <option value="" selected disabled hidden>Select an indicator</option>
+                <option title="Total amount of yearly carbon dioxide emissions per country or area."
+                        value="co2e">Total CO2 emissions</option>
+                <option title="Yearly carbon dioxide emissions for a person per country or area."
+                        value="co2e_percapita">CO2 emissions per capita</option>
+                <option title="Total population by year per country or area."
+                        value="population">Total population</option>
+              </select>
+          </div>
+          <br>
+          <div class="container-select-blk select-chart-type">
+            <select id="choice-chart-type" name="chart_type" size="1"
+                    required title="Select a chart type for representing the data.">
+              <option value="" selected disabled hidden>Select a chart type</option>
+              <option title="The line chart is suitable for representing data across a time range."
+                      id="chart-type-line" value="line">Line chart</option>
+              <option title="Represents data by each country for a single year on a world map."
+                      id="chart-type-map" value="map">World map chart</option>
+            </select>
+          </div>
+        </div>
+        <br>
+        <div class="wrapper-blk">
+          <span id=span-data-range hidden>Select a data range:</span>
+          <div class="container-select-row narrow select-data-range" hidden>
+            <select id="from-year" name="from_year" size="1"
+                    title="Select a starting year for the chart data range.">
+              <option value="" selected disabled hidden>From year...</option>
+            </select>
+            <select id="to-year" name="to_year" size="1"
+                    title="Select the ending year for the chart data range.">
+              <option value="" selected disabled hidden>To year...</option>
+           </select>
+          </div>
+          <div class="container-select-blk narrow select-data-year" hidden>
+            <span id=span-data-range hidden>Select a year:</span>
+            <select id="select-year" name="select_year" size="1" class="narrower"
+              title="Select a year for the chart data.">
+              <option value="" selected disabled hidden>Year...</option>
+            </select>
+          </div>
+        </div>
+       <br>
+       <div class="wrapper-mul search-countries" hidden>
+         <div class="container-search">
+            <input type="text" id="cntr-count" name="count" value="0" hidden>
+            <div class="search-field">
+              <i class="fas fa-search-plus"></i>
+              <input type="text" id="cntr-srch" list="datalist-country" class="dtlist"
+                     placeholder="Search for a country or area...">
+            </div>
+            <div class="container-select-row" >
+              <select id="select-country" title="Select a country, area or aggregate">
+                %s
+              </select>
+            </div>
+
+            <!--<button class="button-inl" id="a-add-btn" type="button"
+                  title="Add all countries matching current search filter">Add all</button>-->
+          </div>
+          <div class="container-button-blk">
+            <button class="button-blk greater" id="o-add-btn" type="button"
+                    title="Add the currently selected country">Add</button>
+          </div>
+          <div class="search-modifiers" id="srch-mod">
+            <div class="container-checkbox-row" id="cbox-mod">
+              <div class="container-checkbox">
+                <input type="checkbox" id="a-incl-cbox"
+                       title="Aggregates are countries grouped under some criteria, such as income group or regional proximity." checked>
+                <label for="a-incl-cbox">Include aggregate entries</label>
+              </div>
+              <div class="container-checkbox">
+                <input type="checkbox" id="n-incl-cbox"
+                       title="Nonindependent areas include autonomous parts of sovereign states, unrecognized entities and contested regions." checked>
+                <label for="n-incl-cbox">Include nonindependent areas</label>
+              </div>
+            </div>
+          </div>
+          <hr>
+          <div id="cntr-list" class="country-list">
+            <!-- script appends added countries here -->
+          </div>
+        </div>
+        <hr>
+        <div class="container-button-row">
+          <button class="button-blk greater" type="submit"
+                  title="Create a chart with the given parameters.">Generate a new chart
+          </button>
+        </div>
+      </fieldset>
+    </form>
+  </body>
+</html>

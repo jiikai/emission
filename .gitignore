@@ -1,4 +1,7 @@
-./depr
-./Procfile
+.sass-lint.yml
+Procfile
 ./resources/css/.sass-lint.yml
-./resources/css/old.*
+./doc/Doxyfile
+./bin/*
+./resources/data/api.worldbank.org.xml
+./db/emiss-pg-indicator-api-creates.sql
