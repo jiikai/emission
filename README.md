@@ -14,7 +14,7 @@ See [API/Heroku app documentation](./doc/emiss.md).
 
 Run `make` in project root folder. This will create an executable file `emiss` in the `/bin` directory.
 
-The following compilation options are provided. You cann pass them to `make` as arguments: `make -D[option-name](=[option-value])`.
+The following compilation options are provided. You can pass them to `make` as arguments: `make -D[option-name](=[option-value])`.
 
 | Option          | Default value | Defined in | Description
 |:--------------- |:--------------|:-----------|:-----------
@@ -27,7 +27,7 @@ The following compilation options are provided. You cann pass them to `make` as 
 
 No system-wide installation option is currently provided.
 
-### Project C files from `include/` and `src/`
+### Project C files from `/include` and `/src`
 
 - `emiss.h`: Main project header.
 - `wlcsv.h`: A wrapper around [libcsv](#builtin-c-dependencies), making the association of multiple callbacks per csv parsing instance possible.
@@ -49,9 +49,9 @@ No system-wide installation option is currently provided.
 ### External C dependencies (system-wide availability assumed)
 | Header     | Description
 |:-----------|:------------------------------------------------------------------------
-|`curl.h`    |[The libcurl C API](https://curl.haxx.se/libcurl/)
-|`libpq-fe.h`|[The PostgreSQL C library](https://www.postgresql.org/docs/10/libpq.html)
-|`pcre.h`    |[The PCRE regular expression library](http://www.pcre.org)
+|`curl.h`    |[libcurl](https://curl.haxx.se/libcurl/)
+|`libpq-fe.h`|[PostgreSQL C library](https://www.postgresql.org/docs/10/libpq.html)
+|`pcre.h`    |[PCRE regular expression library](http://www.pcre.org)
 
 
 ### Dependencies for Heroku app
