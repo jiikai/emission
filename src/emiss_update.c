@@ -9,6 +9,7 @@
 
 #include "emiss.h"
 #include <math.h>
+#include <pthread.h>
 #include "uthash.h"
 #include "util_sql.h"
 #include "wlcsv.h"
@@ -478,7 +479,7 @@ error:
 }
 
 void
-emiss_free_update_ctx(emiss_update_ctx_st *upd_ctx)
+emiss_update_ctx_free(emiss_update_ctx_st *upd_ctx)
 {
     if (upd_ctx) {
         wlcsv_free(upd_ctx->lcsv_ctx);
@@ -500,7 +501,7 @@ emiss_free_update_ctx(emiss_update_ctx_st *upd_ctx)
 }
 
 emiss_update_ctx_st *
-emiss_init_update_ctx(char *tui_chart_worldmap_data_path)
+emiss_update_ctx_init(char *tui_chart_worldmap_data_path)
 {
     emiss_update_ctx_st *upd_ctx = calloc(1, sizeof(emiss_update_ctx_st));
     check(upd_ctx, ERR_MEM, EMISS_ERR);
@@ -518,12 +519,26 @@ emiss_init_update_ctx(char *tui_chart_worldmap_data_path)
     return upd_ctx;
 error:
     if (upd_ctx)
-        emiss_free_update_ctx(upd_ctx);
+        emiss_update_ctx_free(upd_ctx);
     return 0;
 }
 
+int
+emiss_update_start_async()
+{
+    pthread_attr_t attr;
+    int pthrdret = pthread_attr_init(&attr);
+    check(pthrdret == 0, ERR_FAIL, WLPQ, "initializing thread attributes");
+    pthrdret = pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+    check(pthrdret == 0, ERR_FAIL, WLPQ, "setting thread detach state");
+    pthrdret = pthread_create(0, &attr, emiss_retrieve_async_start, 0);
+    check(pthrdret == 0, ERR_FAIL, WLPQ, "creating thread");
+error:
+    return -1;
+}
+
 size_t
-emiss_parse_and_update(emiss_update_ctx_st *upd_ctx,
+emiss_update_parse_send(emiss_update_ctx_st *upd_ctx,
     char **paths, uintmax_t *file_sizes, size_t npaths,
     int *dataset_ids, time_t current_version)
 {
@@ -602,9 +617,9 @@ emiss_parse_and_update(emiss_update_ctx_st *upd_ctx,
         retval += ret;
     }
     printf("cleaning up\n");
-    emiss_free_update_ctx(upd_ctx);
+    emiss_update_ctx_free(upd_ctx);
     return retval;
 error:
-	emiss_free_update_ctx(upd_ctx);
+	emiss_update_ctx_free(upd_ctx);
     return -1;
 }

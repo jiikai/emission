@@ -1,4 +1,6 @@
-/*  "emiss.retrieve.c" */
+/*  @file   emiss.retrieve.c
+    @brief  Part of the implementation of "emiss.h"
+*/
 
 /*
 **  INCLUDES
@@ -297,12 +299,12 @@ emiss_retrieve_data()
     };
     time_t last_update;
     GET_LAST_DATA_ACCESS(last_update);
-    emiss_update_ctx_st *upd_ctx = emiss_init_update_ctx("../resources/data/in_tui_chart_map.txt");
+    emiss_update_ctx_st *upd_ctx = emiss_update_ctx_init("../resources/data/in_tui_chart_map.txt");
     check(upd_ctx, ERR_FAIL, EMISS_ERR, "initializing update context structure");
     uintmax_t tmp = file_sizes[2];
     file_sizes[2] = file_sizes[3];
     file_sizes[3] = tmp;
-    ret = emiss_parse_and_update(upd_ctx, paths,
+    ret = emiss_update_parse_send(upd_ctx, paths,
             file_sizes, 4, dataset_ids,
             last_update);
     check(ret != -1, ERR_FAIL, EMISS_ERR, "processing csv data");
@@ -321,5 +323,11 @@ emiss_retrieve_data()
             time_str_buf);
     return (int) time(0);
 error:
+    return 0;
+}
+
+void *
+emiss_retrieve_async_start()
+{
     return 0;
 }

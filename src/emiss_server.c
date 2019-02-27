@@ -254,12 +254,12 @@ static_resource_request_handler(struct mg_connection *conn, void *cbdata)
                             ? 2 : !mg_strncasecmp(requested, "/verge.min.js", 2)
                             ? 3 : !mg_strncasecmp(requested, EMISS_URI_ABOUT, 2)
                             ? 4 : 0;
-    const char *resource    = emiss_get_static_resource(rsrc_ctx, rsrc_idx);
+    const char *resource    = emiss_resource_static_get(rsrc_ctx, rsrc_idx);
     const char *mime_type   = resource[strlen(resource) - 1] == 's'
                             ? HTTP_MIMETYPE_JS
                             : HTTP_MIMETYPE_HTML;
     ret = mg_printf(conn, HTTP_RESPONSE_HDR, 200, RES_200_TXT,
-            (uintmax_t) emiss_get_static_resource_size(rsrc_ctx, rsrc_idx),
+            (uintmax_t) emiss_resource_static_size(rsrc_ctx, rsrc_idx),
             mime_type, "close", TRANSFER_ENCODING_NONE, "");
 
     if (ret < 1) {
@@ -321,7 +321,7 @@ exit_request_handler(struct mg_connection *conn, void *cbdata)
 /*  IMPLEMENTATION OF FUNCTION PROTOTYPES IN: 'emiss.h' */
 
 emiss_server_ctx_st *
-emiss_init_server_ctx(emiss_template_st *template_data)
+emiss_server_ctx_init(emiss_template_st *template_data)
 {
 	int ret;
 	struct emiss_server_ctx *server = calloc(1, sizeof(struct emiss_server_ctx));
@@ -381,14 +381,13 @@ emiss_init_server_ctx(emiss_template_st *template_data)
 
 	return server;
 error:
-    if (server) {
-        emiss_free_server_ctx(server);
-    }
-	return NULL;
+    if (server)
+        emiss_server_ctx_free(server);
+    return 0;
 }
 
 void
-emiss_free_server_ctx(emiss_server_ctx_st *server_ctx)
+emiss_server_ctx_free(emiss_server_ctx_st *server_ctx)
 {
     if (server_ctx) {
         if (server_ctx->civet_ctx) {
@@ -412,23 +411,20 @@ emiss_server_run(emiss_server_ctx_st *server_ctx)
     int ret = sigaction(SIGTERM, &server_ctx->sigactor, NULL);
     check(ret == 0, ERR_FAIL, EMISS_MSG, "to set signal handler, aborting process");
 
-    int i;
-    for (i = 0; i < server_ctx->ports_count && i < 32; i++) {
+    for (size_t i = 0; i < server_ctx->ports_count && i < 32; i++) {
 		const char *protocol = DEFINE_PROTOCOL(server_ctx, i);
-    	if ((server_ctx->civet_ports[i].protocol & 1) == 1) {
-            fprintf(stdout, "%s IPv4 connection on port %d\n", protocol, i);
-    	}
+    	if ((server_ctx->civet_ports[i].protocol & 1) == 1)
+            fprintf(stdout, "%s IPv4 connection on port %lu\n", protocol, i);
     }
 
-    while (!terminate) {
+    while (!terminate)
         sleeper(1);
-    }
 
-    emiss_free_server_ctx(server_ctx);
+    emiss_server_ctx_free(server_ctx);
 	fprintf(stdout, "Server stopped without errors.\n");
 	return EXIT_SUCCESS;
 error:
-    emiss_free_server_ctx(server_ctx);
+    emiss_server_ctx_free(server_ctx);
     fprintf(stderr, "Server stopped on error.\n");
     return EXIT_FAILURE;
 }

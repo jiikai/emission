@@ -8,7 +8,7 @@ All of the server-side functionality - including the fetching, parsing, uploadin
 
 ### Documentation
 
-See [API/Heroku app documentation](./doc/emiss.md).
+See [API documentation](./doc/emiss_api.md).
 
 ### Building ###
 
@@ -19,11 +19,6 @@ The following compilation options are provided. You can pass them to `make` as a
 | Option          | Default value | Defined in | Description
 |:--------------- |:--------------|:-----------|:-----------
 |`HEROKU`         | undefined     |`emiss.h`   | Switch on Heroku-specific modifications
-|`WLPQ_STACK_SIZE`| 0x20000||
-|`WLPQ_MAX_NCONN`|||
-|`WLPQ_MAX_NQUERY_THREADS`|||
-||||
-||||
 
 No system-wide installation option is currently provided.
 
@@ -32,7 +27,7 @@ No system-wide installation option is currently provided.
 - `emiss.h`: Main project header.
 - `wlcsv.h`: A wrapper around [libcsv](#builtin-c-dependencies), making the association of multiple callbacks per csv parsing instance possible.
 - `wlpq.h`: Strives to provide asynchronous, nonblocking PostgreSQL database querying facilities around [libpq](#builtin-c-dependencies).
-- `util_sql.h/util_curlopts.h`: Auxiliary utility macros for formatting SQL and setting libcurl options, respectively.
+- `util_json.h/util_sql.h/util_curl.h`: Auxiliary utility macros for formatting JSON, SQL and setting libcurl options, respectively.
 
 
 ### Embedded C dependency files from `include/dep/` and `src/dep/`
@@ -70,6 +65,7 @@ No system-wide installation option is currently provided.
 ### Future directions ###
 
 - Replace the DIY event loops from `wlpq.h` with something like [libev](http://software.schmorp.de/pkg/libev.html). Perhaps get rid of pthreads altogether.
+- Create a more flexible update mechanism.
 - Separate the data retrieval and parsing facilities from `emiss.h` into their own interface, opening avenues for general querying of indicator data from Worldbank.
 - Replace the naive substring search in `param.js` with a suffix array or somesuch device.
 - Add more chart types to the Heroku app.

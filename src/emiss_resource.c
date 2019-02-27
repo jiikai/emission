@@ -721,12 +721,12 @@ format_chart_html(emiss_template_st *template_data,
 /*  EXTERN INLINE INSTANTIATIONS */
 
 extern inline void
-emiss_free_template_structure(emiss_template_st *template_data);
+emiss_resource_template_free(emiss_template_st *template_data);
 
 /*  PROTOTYPE IMPLEMENTATIONS */
 
 emiss_template_st *
-emiss_construct_template_structure(emiss_resource_ctx_st *rsrc_ctx)
+emiss_resource_template_init(emiss_resource_ctx_st *rsrc_ctx)
 {
     emiss_template_st *template_data = calloc(1, sizeof(emiss_template_st));
     check(template_data, ERR_MEM, EMISS_ERR);
@@ -742,7 +742,7 @@ error:
 }
 
 char *
-emiss_get_static_resource(emiss_resource_ctx_st *rsrc_ctx, size_t i)
+emiss_resource_static_get(emiss_resource_ctx_st *rsrc_ctx, size_t i)
 {
     if (rsrc_ctx && i < EMISS_NSTATICS)
         return bdata(rsrc_ctx->static_resource[i]);
@@ -750,7 +750,7 @@ emiss_get_static_resource(emiss_resource_ctx_st *rsrc_ctx, size_t i)
 }
 
 size_t
-emiss_get_static_resource_size(emiss_resource_ctx_st *rsrc_ctx, size_t i)
+emiss_resource_static_size(emiss_resource_ctx_st *rsrc_ctx, size_t i)
 {
     if (rsrc_ctx && i < EMISS_NSTATICS)
         return blength(rsrc_ctx->static_resource[i]);
@@ -758,7 +758,7 @@ emiss_get_static_resource_size(emiss_resource_ctx_st *rsrc_ctx, size_t i)
 }
 
 emiss_resource_ctx_st *
-emiss_init_resource_ctx()
+emiss_resource_ctx_init()
 {
     emiss_resource_ctx_st *rsrc_ctx = malloc(sizeof(emiss_resource_ctx_st));
     check(rsrc_ctx, ERR_MEM, EMISS_ERR);
@@ -807,7 +807,7 @@ error:
 }
 
 void
-emiss_free_resource_ctx(emiss_resource_ctx_st *rsrc_ctx)
+emiss_resource_ctx_free(emiss_resource_ctx_st *rsrc_ctx)
 {
     if (rsrc_ctx) {
         if (rsrc_ctx->conn_ctx)

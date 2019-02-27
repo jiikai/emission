@@ -276,6 +276,9 @@ emiss_should_check_for_update()
 int
 emiss_retrieve_data();
 
+void *
+emiss_retrieve_async_start();
+
 /*  "emiss_update.c" */
 
 /*! Allocate and initialize the data parser & updater context structure.
@@ -287,7 +290,7 @@ emiss_retrieve_data();
     @see emiss_free_update_ctx()
 */
 emiss_update_ctx_st *
-emiss_init_update_ctx(char *tui_chart_worldmap_data_path);
+emiss_update_ctx_init(char *tui_chart_worldmap_data_path);
 
 /*! Deallocate the data parser & updater context structure.
 
@@ -296,7 +299,7 @@ emiss_init_update_ctx(char *tui_chart_worldmap_data_path);
     @see emiss_init_update_ctx()
 */
 void
-emiss_free_update_ctx(emiss_update_ctx_st *upd_ctx);
+emiss_update_ctx_free(emiss_update_ctx_st *upd_ctx);
 
 /*! Preview csv files and check "Last updated" information from the Worldbank data files, if newer
     than `last_update`, update records in the database concerning the data in that file.
@@ -316,7 +319,7 @@ emiss_free_update_ctx(emiss_update_ctx_st *upd_ctx);
     @see emiss_free_update_ctx(), emiss_init_update_ctx()
 */
 size_t
-emiss_parse_and_update(emiss_update_ctx_st *upd_ctx,
+emiss_update_parse_send(emiss_update_ctx_st *upd_ctx,
     char **paths, uintmax_t *file_sizes, size_t npaths,
     int *dataset_ids, time_t last_update);
 
@@ -329,7 +332,7 @@ emiss_parse_and_update(emiss_update_ctx_st *upd_ctx,
     @see emiss_free_resource_ctx()
 */
 emiss_resource_ctx_st *
-emiss_init_resource_ctx();
+emiss_resource_ctx_init();
 
 /*! Deallocator/cleaner for resource context structure.
 
@@ -338,7 +341,7 @@ emiss_init_resource_ctx();
     @see emiss_init_resource_ctx()
 */
 void
-emiss_free_resource_ctx();
+emiss_resource_ctx_free();
 
 /*!  Allocator/initializer for document template data structure.
 
@@ -349,7 +352,7 @@ emiss_free_resource_ctx();
     @see emiss_free_template_structure(), emiss_init_resource_ctx(), emiss_free_resource_ctx()
 */
 emiss_template_st *
-emiss_construct_template_structure(emiss_resource_ctx_st *rsrc_ctx);
+emiss_resource_template_init(emiss_resource_ctx_st *rsrc_ctx);
 
 /*! Deallocator/cleaner or document template data structure.
 
@@ -360,7 +363,7 @@ emiss_construct_template_structure(emiss_resource_ctx_st *rsrc_ctx);
     @see emiss_construct_template_structure(), emiss_init_resource_ctx(), emiss_free_resource_ctx()
 */
 inline void
-emiss_free_template_structure(emiss_template_st *template_data)
+emiss_resource_template_free(emiss_template_st *template_data)
 {
     if (template_data) {
         free(template_data);
@@ -377,7 +380,7 @@ emiss_free_template_structure(emiss_template_st *template_data)
     @see emiss_init_resource_ctx(), emiss_free_resource_ctx(), emiss_get_static_resource_size()
 */
 char *
-emiss_get_static_resource(emiss_resource_ctx_st *rsrc_ctx, size_t i);
+emiss_resource_static_get(emiss_resource_ctx_st *rsrc_ctx, size_t i);
 
 /*! Return the size in bytes of a static asset stored in memory.
 
@@ -389,7 +392,7 @@ emiss_get_static_resource(emiss_resource_ctx_st *rsrc_ctx, size_t i);
     @see emiss_init_resource_ctx(), emiss_free_resource_ctx(), emiss_get_static_resource()
 */
 size_t
-emiss_get_static_resource_size(emiss_resource_ctx_st *rsrc_ctx, size_t i);
+emiss_resource_static_size(emiss_resource_ctx_st *rsrc_ctx, size_t i);
 
 /*  "emiss_server.c" */
 
@@ -403,7 +406,7 @@ emiss_get_static_resource_size(emiss_resource_ctx_st *rsrc_ctx, size_t i);
     @see emiss_free_server_ctx, emiss_server_run()
 */
 emiss_server_ctx_st *
-emiss_init_server_ctx(emiss_template_st *template_data);
+emiss_server_ctx_init(emiss_template_st *template_data);
 
 /*! Deallocator and cleaner for server context structure.
 
@@ -412,7 +415,7 @@ emiss_init_server_ctx(emiss_template_st *template_data);
     @see emiss_init_server_ctx(), emiss_server_run()
 */
 void
-emiss_free_server_ctx(emiss_server_ctx_st *server_ctx);
+emiss_server_ctx_free(emiss_server_ctx_st *server_ctx);
 
 /*! Run server in an event loop until a terminating signal/request is received.
 
