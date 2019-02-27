@@ -329,14 +329,10 @@ emiss_init_server_ctx(emiss_template_st *template_data)
 
 	/* 	Initialize the CivetWeb server. */
     mg_init_library(0);
-    /*const char *options[] = {
-        "document_root", "../resources/html",
-        "listening_ports", EMISS_SERVER_PORT,
-        "auth_dom_check", CIVET_AUTH_DOM_CHECK,
-
+    const char *options[] = {
+        "listening_ports", CIVET_SERVER_PORT
     };
-    server->civet_callbacks.log_message = civet_log_message_redirect;*/
-    struct mg_context *civet_ctx = mg_start(&server->civet_callbacks, 0, NULL);
+    struct mg_context *civet_ctx = mg_start(&server->civet_callbacks, 0, options);
 	check(civet_ctx, ERR_FAIL, EMISS_MSG, "initializing Civetweb server");
 	server->civet_ctx = civet_ctx;
 	server->ports_count = mg_get_server_ports(civet_ctx, 32, server->civet_ports);
