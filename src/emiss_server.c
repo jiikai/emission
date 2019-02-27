@@ -330,7 +330,7 @@ emiss_init_server_ctx(emiss_template_st *template_data)
 	/* 	Initialize the CivetWeb server. */
     mg_init_library(0);
     const char *options[] = {
-        "listening_ports", CIVET_SERVER_PORT
+        "listening_ports", getenv("PORT"), 0
     };
     struct mg_context *civet_ctx = mg_start(&server->civet_callbacks, 0, options);
 	check(civet_ctx, ERR_FAIL, EMISS_MSG, "initializing Civetweb server");
