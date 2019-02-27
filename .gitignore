@@ -1,6 +1,6 @@
 .sass-lint.yml
 ./resources/css/.sass-lint.yml
-./doc/Doxyfile
+doc/Doxyfile
 ./bin/*
 ./resources/data/api.worldbank.org.xml
 ./db/emiss-pg-indicator-api-creates.sql

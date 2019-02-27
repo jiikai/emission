@@ -3,7 +3,7 @@
 ## Synopsis
 
 > `#include "emiss.h"`
-> Compile and link with `-lpcre -lpq` (dependencies of `wlcsv.h` and )
+> Compile and link with `-lpcre -lpq` (dependencies of `wlcsv.h` and `ẁlpq.h`)
 
 
 This file documents `emiss.h`, the main header file of the Emission API.
@@ -12,7 +12,7 @@ This file documents `emiss.h`, the main header file of the Emission API.
 
 (c) Joa Käis (github.com/jiikai) 2018-2019 under the [MIT license](../LICENSE.md).
 
-===============================================================================
+-------------------------------------------------------------------------------
 
 ## Includes
 
@@ -35,12 +35,12 @@ The header `emiss.h` includes the following:
 #include "wlpq.h"
 ```
 
-===============================================================================
+-------------------------------------------------------------------------------
 
 ## Macros
 
 
-===============================================================================
+-------------------------------------------------------------------------------
 
 ## Types
 
@@ -115,7 +115,7 @@ typedef int (emiss_template_ft)(emiss_template_st * template_data,
     size_t i, const char * qstr, void * cbdata);
 ```
 
-===============================================================================
+-------------------------------------------------------------------------------
 
 ## Functions
 

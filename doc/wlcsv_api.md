@@ -16,7 +16,7 @@ It is a component of the [Emission API](emiss_api.md).
 
 (c) Joa Käis (github.com/jiikai) 2018-2019 under the [MIT license](../LICENSE.md).
 
-===============================================================================
+-------------------------------------------------------------------------------
 
 ## Includes
 
@@ -36,7 +36,7 @@ The header for the embedded `libcsv` source is included locally.
 #include "csv.h"
 ```
 
-===============================================================================
+-------------------------------------------------------------------------------
 
 ## Macros
 
@@ -97,7 +97,7 @@ A `NULL`-safe, generic convenience "getter" for [the state structure](#wlcsv_sta
 - Substitute a state structure pointer for `stt` and the *name* of the struct member for `member`.
 - Evaluates to `member`'s value or `UINT_MAX` if `stt` is a `NULL` pointer.
 
-===============================================================================
+-------------------------------------------------------------------------------
 
 ## Types
 
@@ -206,7 +206,7 @@ typedef union {
 
 __See also:__ [`wlcsv_callback_match_by_et()`](#wlcsv_callback_match_by_et), [`wlcsv_callback_ft`](#wlcsv_callback_ft), [`wlcsv_callbacks_set()`](#wlcsv_callbacks_set-)
 
-===============================================================================
+-------------------------------------------------------------------------------
 
 ## Functions
 
