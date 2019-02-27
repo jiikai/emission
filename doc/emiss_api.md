@@ -8,6 +8,8 @@
 
 This file documents `emiss.h`, the main header file of the Emission API.
 
+See also the documentation for the other components, [`wlcsv.h`](./wlcsv_api.md) and [`wlpq.h`](./wlpq_api.md).
+
 ### License
 
 (c) Joa Käis (github.com/jiikai) 2018-2019 under the [MIT license](../LICENSE.md).
