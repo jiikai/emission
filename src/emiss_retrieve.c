@@ -10,7 +10,7 @@
 #include <pcre.h>
 
 #include "zip.h"
-#include "util_curlopts.h"
+#include "util_curl.h"
 
 /*
 **  TYPES
