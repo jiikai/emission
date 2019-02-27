@@ -18,9 +18,9 @@ volatile sig_atomic_t terminate;
 /*  Options for the CivetWeb server. *////@{
 #ifdef HEROKU
     #define CIVET_SERVER_PORT  getenv("PORT")
-    #define CIVET_SERVER_HOST "emiss.herokuapp.com"
+    #define CIVET_SERVER_HOST "emission.herokuapp.com"
     #define CIVET_SERVER_PROTOCOL "https://"
-    #define CIVET_ABS_ROOT_URL "https://emiss.herokuapp.com"
+    #define CIVET_ABS_ROOT_URL "https://emission.herokuapp.com"
 #else
     #ifndef CIVET_SERVER_PORT
         #define CIVET_SERVER_PORT "8080"
