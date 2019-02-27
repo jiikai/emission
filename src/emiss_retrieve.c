@@ -313,15 +313,13 @@ emiss_retrieve_data()
     char time_str_buf[0x100];
     strftime(time_str_buf, 0xFF, "%F",
         gmtime_r(&last_update, &update_time_utc));
-    if (!ret) {
+    if (!ret)
         fprintf(stdout, "Data (last checked at %s) was already up to date.",
             time_str_buf);
-    } else {
+    else
         fprintf(stdout, "Data (last checked at %s) was succesfully updated.",
             time_str_buf);
-    }
-    UPDATE_LAST_DATA_ACCESS(last_update);
-    return 1;
+    return (int) time(0);
 error:
     return 0;
 }

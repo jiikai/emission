@@ -177,15 +177,6 @@
             "converting string to long:", "integer overflow");\
     } while (0)
 
-#define UPDATE_LAST_DATA_ACCESS(arg)\
-    do {\
-        check(time(&arg) != -1, ERR_FAIL, EMISS_ERR,\
-            "obtaining current time in seconds");\
-        char buf[65] = {0};\
-        snprintf(buf, 64, "%ld", (long) arg);\
-        setenv("LAST_DATA_ACCESS", buf, 1);\
-    } while (0)
-
 /*  Byte length calculation. */
 #define SIZE_IN_BYTES(object)\
     ((uintmax_t) sizeof(object) * (sizeof(size_t) / sizeof(uint8_t)))
