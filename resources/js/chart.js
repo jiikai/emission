@@ -11,9 +11,9 @@ const chart_type = '%s';
 
 function setChartData(arg) {
   if (chart_type !== 'map') {
-    arg.categories = [%s];
+    arg.categories = JSON.parse('[%s]');
   }
-  arg.series = [%s];
+  arg.series = JSON.parse('[%s]');
 }
 
 (() => {

@@ -1,8 +1,8 @@
-# ‪wlpq
+# ‪wlpq.h - API documentation
 
 ## Synopsis
 
->__`#include "wlpq.h"`__
+>`#include "wlpq.h"`
 
 > Compile/link with `-lpq`.
 
@@ -12,57 +12,48 @@ The intention is to facilitate non-blocking, asynchronous database operation.
 
 It is a component of the [Emission API](emiss_api.md).
 
-
-
-## License
+### License
 
 (c) Joa Käis (github.com/jiikai) 2018-2019 under the [MIT license](../LICENSE.md).
 
+===============================================================================
+
 ## Includes
 
-Including `wlpq.h` brings with it the following headers:
+The header `wlpq.h` includes the following headers:
 
 ```c
-#include <stddef.h>
 #include <stdint.h>
 #include <libpq-fe.h>
 ```
 
-***
+===============================================================================
+
 ## Macros
 
-#### Nonmodifiable
+### Nonmodifiable
 
 - Defines the name of this interface (for use in error messages).
 ```c
 #define WLPQ "wlpq"
 ```
 
-- Defines an expression for deriving maximum number of connections per query and per poller thread.
-```c
-#define WLPQ_MAX_NCONN_PER_QUERY_THREAD (WLPQ_MAX_NCONN / WLPQ_MAX_NQUERY_THREADS)
-```
-
-- Defines an expression for calculating the total number of threads spawned by this API-
-```c
-#define WLPQ_NTOTAL_THREADS(nquery_thread, npoll_thread) (nquery_thread + npoll_thread * nquery_thread)
-```
-
-- Define expressions for deriving the total maximum and minimum possible number of active threads.
-```c
-#define WLPQ_MAX_NTOTAL_THREADS WLPQ_NTOTAL_THREADS(WLPQ_MAX_NQUERY_THREADS, WLPQ_MAX_NPOLL_THREADS)
-#define WLPQ_MIN_NTOTAL_THREADS (WLPQ_NTOTAL_THREADS(WLPQ_MIN_NQUERY_THREADS, WLPQ_MIN_NPOLL_THREADS))
-```
-
-- Define lower bounds for the number of simultaneous connections, active query and poller threads.
+- Define lower bounds for the number of simultaneous connections and connection query/poll threads.
 ```c
 #define WLPQ_MIN_NCONN 1
 #define WLPQ_MIN_NQUERY_THREADS 1
 #define WLPQ_MIN_NPOLL_THREADS 1
 ```
 
-#### User definable macros & default values
-All of following are enclosed in a `#ifndef X\ #define X Y\ #endif` block.
+- Define the derived maximum number of connections per query/poll thread.
+```c
+#define WLPQ_MAX_NCONN_PER_THREAD (unsigned) (WLPQ_MAX_NCONN / WLPQ_MAX_NCONNTHREADS)
+```
+
+
+### User definable
+
+All of the following are enclosed in a `#ifndef X\ #define X Y\ #endif` block.
 
 Redefine at compile time by passing `-D<MACRO_NAME>=<value>` to the compiler.
 
@@ -76,13 +67,10 @@ Redefine at compile time by passing `-D<MACRO_NAME>=<value>` to the compiler.
 ```
 - Define default higher bounds for
    - the number of simultaneous database connections,
-   - active query threads, and
-   - active poller threads opened per query thread.
-- The following is also enforced regarding these macros: Neither `WLPQ_MAX_NQUERY_THREADS`, nor `WLPQ_MAX_NPOLL_THREADS`, may be greater than ``WLPQ_MAX_NCONN``.
+   - active connection query/poll threads.
 ```c
-#define WLPQ_MAX_NCONN 20
-#define WLPQ_MAX_NQUERY_THREADS 1
-#define WLPQ_MAX_NPOLL_THREADS 1
+#define WLPQ_MAX_NCONN 19
+#define WLPQ_MAX_NCONNTHREADS WLPQ_MIN_NCONNTHREADS
 ```
 - Maximum number of parameters in a prepared statement.
 ```c
@@ -97,12 +85,13 @@ The stack size in bytes available to threads launched by functions of this inter
 #define WLPQ_STACK_SIZE 0x200000
 ```
 
-***
+===============================================================================
+
 ## Types
 
 ### Structure types
 
-__`wlpq_conn_ctx_st`__
+#### `wlpq_conn_ctx_st`
 
 ‪An opaque handle to the main context structure.
 
@@ -110,8 +99,8 @@ __`wlpq_conn_ctx_st`__
 typedef struct wlpq_conn_ctx wlpq_conn_ctx_st;
 ```
 
-***
-__`wlpq_query_data_st`__
+
+#### `wlpq_query_data_st`
 An opaque handle to a data structure for a single query.
 
 ```c
@@ -120,26 +109,44 @@ typedef struct wlpq_query_data wlpq_query_data_st;
 
 - Pending database queries are enqueued in a singly linked list ([`utlist.h`](utlist.h)) with a separate tail-pointer housed in the connection context structure. This enables O(1) append, crucial to an efficient queue-implementation, without the need for a doubly-linked list's in this context useless backpointers.
 
+
 ### Function types
 
-__`wlpq_notify_handler_ft`__ ‪
+#### `wlpq_notify_handler_ft`
 
 A callback function type for handling NOTIFY messages sent by the server.
+
 ```c
 typedef void wlpq_notify_handler_ft(PGnotify *notify, void *arg);
 ```
 
-__`wlpq_notify_res_ft`__
+
+#### `wlpq_notify_res_ft`
 
 A callback function type for handling result sets returned by queries.
+
 ```c
 typedef void wlpq_res_handler_ft(PGresult *res, void *arg);
 ```
 
-***
+
+### Enum types
+
+#### `wlpq_notify_thread_state_et`
+
+An enum type of possible thread states.
+
+```c
+typedef enum wlpq_thread_state {
+    NONE, IDLE, BUSY, SUCC, FAIL
+} wlpq_thread_state_et;
+```
+
+===============================================================================
+
 ## Functions
 
-__`wlpq_conn_ctx_free()`__
+#### `wlpq_conn_ctx_free()`
 
 Deallocate a previously allocated connection context structure.
 
@@ -153,8 +160,8 @@ void wlpq_conn_ctx_free(wlpq_conn_ctx_st *ctx);
 
 - This function will silently fail if `ctx` is a `NULL` pointer.
 
-***
-__`wlpq_conn_ctx_init()`__ ‪
+
+#### `wlpq_conn_ctx_init()` ‪
 
 Allocate and initialize a connection context structure.
 
@@ -166,14 +173,14 @@ wlpq_conn_ctx_st * wlpq_conn_ctx_init(char *db_url);
 |:------------|:---------------------------------------------------------------
 |`db_url`     | An URL to a Postgres database.
 
-- If `db_url` equals `NULL`, checks the environment variable `DATABASE_URL`.
+- If `db_url == NULL`, checks the environment variable `DATABASE_URL`.
 - Function will fail if both `DATABASE_URL` is empty and no valid Postgres database URL is provided as a parameter.
 
 __Returns:__ A valid pointer to the initialized context structure or `NULL` on failure.
 
-***
 
-__`wlpq_conn_ctx_notify_handler_set()`__ ‪
+
+#### `wlpq_conn_ctx_notify_handler_set()`
 
 Set a callback for `NOTIFY` messages from the database server.
 
@@ -191,9 +198,8 @@ void wlpq_conn_ctx_notify_handler_set(wlpq_conn_ctx_st *ctx,
 - The default behaviour is to ignore `NOTIFY` messages. You may want to issue `LISTEN/NOTIFY` commands too, since no notifications will arrive unless explicitly requested.
 - This function will silently fail if `ctx` is a `NULL` pointer.
 
-***
 
-__`wlpq_query_free()`__
+#### `wlpq_query_free()`
 
 ‪Deallocate a previously allocated connection context structure.
 
@@ -205,10 +211,10 @@ void wlpq_query_free(wlpq_query_data_st *data);
 |:------------|:---------------------------------------------------------------
 |`data`       | A pointer to a query data structure.
 
-- This function will silently fail if _ctx_ is a `NULL` pointer.
+- This function will silently fail if `data == NULL`.
 
-***
-__`wlpq_query_init()`__
+
+#### `wlpq_query_init()`
 
 ‪Allocate and initialize a structure holding SQL query data.
 
@@ -230,8 +236,8 @@ wlpq_query_data_st * wlpq_query_init(char *stmt_or_cmd,
 
 __Returns:__ A pointer to the allocated and initialized query data structure on success or `NULL` on error.
 
-***
-__`wlpq_query_queue_empty()`__
+
+#### `wlpq_query_queue_empty()`
 
 ‪Atomically check whether the query queue is currently empty.
 
@@ -247,8 +253,8 @@ uint8_t wlpq_query_queue_empty(wlpq_conn_ctx_st *ctx);
 
 __Returns:__ `1` if the queue is empty, `0` if not.
 
-***
-__`wlpq_query_queue_enqueue()`__
+
+#### `wlpq_query_queue_enqueue()`
 
 ‪Atomically enqueue a query data object created with [`wlpq_query_init()`]().
 
@@ -263,8 +269,8 @@ int wlpq_query_queue_enqueue(wlpq_conn_ctx_st *ctx, wlpq_query_data_st *qr_dt);
 
 __Returns:__  `1` on success, `0` on error.
 
-***
-__`wlpq_query_run_blocking()`__
+
+####`wlpq_query_run_blocking()`
 
 ‪Run a query that will block the calling thread until complete.
 
@@ -278,8 +284,8 @@ int wlpq_query_run_blocking(wlpq_conn_ctx_st *ctx, char *stmt_or_cmd,
 
 __Returns:__  `1` on success, `0` on error.
 
-***
-__`wlpq_threads_launch()`__ ‪
+
+#### `wlpq_threads_launch()`
 
 Launch the query sender and connection poller threads.
 
@@ -295,8 +301,8 @@ int wlpq_threads_launch(wlpq_conn_ctx_st *ctx);
 
 __Returns:__ `1` on success, `0` on error.
 
-***
-__`wlpq_threads_launch_async()`__
+
+#### `wlpq_threads_launch_async()`
 
 ‪Request the launch of the query sender and connection poller threads.
 
@@ -312,8 +318,8 @@ int wlpq_threads_launch_async(wlpq_conn_ctx_st *ctx);
 
 __Returns:__ `1` on success, `0` on error.
 
-***
-__`wlpq_threads_nconn_set()`__ ‪
+
+#### `wlpq_threads_nconn_set()`
 
 Set the number of database connections to send queries over.
 
@@ -329,24 +335,8 @@ void wlpq_threads_nconn_set(wlpq_conn_ctx_st *ctx, unsigned nconn);
 - The function will silently fail if `nconn < 1`.
 - Make sure your database doesn't exceed its credentials!
 
-***
-__`wlpq_threads_npoll_set()`__
 
-‪Set the number of poller threads per query sender thread.
-
-```c
-void wlpq_threads_npoll_set(wlpq_conn_ctx_st *ctx, unsigned npoll);
-```
-
-|__Parameter__|__Description__
-|:------------|:----------------------------------------------------------------
-|`ctx`        | A pointer to the connection context structure.
-|`npoll`      | The number of pollers.
-
-- The function will silently fail if `ncpoll < 1`.
-
-***
-__`wlpq_threads_stop_and_join()`__
+#### `wlpq_threads_stop_and_join()`
 
 ‪Stop all query sender and connection poller threads, blocking until complete.
 
@@ -358,22 +348,20 @@ int wlpq_threads_stop_and_join(wlpq_conn_ctx_st *ctx);
 |:------------|:---------------------------------------------------------------
 |`ctx`        | A pointer to the connection context structure.
 
-__Returns:__ `0` on success, on error a positive integer indicating the number of errors, or `-1` if `ctx` was `NULL`.
+__Returns:__ `0` on success, on error a positive integer (the number of errors), or `-1` if `ctx == NULL`.
 
-***
-__`wlpq_threads_wait_until_idle()`__ ‪
 
-Block control flow of the calling thread until all send/poll threads are in an idle state.
+#### `wlpq_threads_wait_until()`
+
+Block control flow of the calling thread until all send/poll threads are in a certain state.
 
 ```c
-void wlpq_threads_wait_until_idle(wlpq_conn_ctx_st *ctx);
+void wlpq_threads_wait_until_idle(wlpq_conn_ctx_st *ctx, wlpq_thread_state_et state);
 ```
 
 |__Parameter__|__Description__
 |:------------|:---------------------------------------------------------------
 |`ctx`        | A pointer to the connection context structure.
+|`state`      | A desired state value of type [wlpq_thread_state_et](#wlpq_thread_state_et).
 
-- "Idle state" means not processing a query or polling a busy connection.
-- The function will silently fail if `ctx` was `NULL`.
-
-***
+- The function will silently fail if `ctx == NULL`.

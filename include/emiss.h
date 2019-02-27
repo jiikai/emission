@@ -142,7 +142,7 @@
 ///@}
 
 /*! Number of static assets. */
-#define EMISS_NSTATICS 4
+#define EMISS_NSTATICS 5
 /*! Number of template assets. */
 #define EMISS_NTEMPLATES 2
 /*! Required size for a buffer holding comma separated years in string format. */
@@ -212,7 +212,7 @@ typedef struct emiss_update_ctx emiss_update_ctx_st;
 */
 typedef struct emiss_template_s emiss_template_st;
 
-/* An opaque handle for the data retrieval and format context struct.
+/*! An opaque handle for the data retrieval and format context struct.
     Implemented in emiss_resource.c.
 */
 typedef struct emiss_resource_ctx emiss_resource_ctx_st;
@@ -248,31 +248,31 @@ struct emiss_template_s {
 typedef struct emiss_server_ctx emiss_server_ctx_st;
 
 /*
-** FUNCTION PROTOTYPES & INLINE FUNCTION DEFINITIONS
+** FUNCTIONS
 */
 
 /*  "emiss_retrieve.c" */
 
 /*! Check the timestamp of last data retrieval.
 
-    Queries the environment variable 'LAST_DATA_ACCESS' for the last time data was downloaded from
+    Queries the environment variable `LAST_DATA_ACCESS` for the last time data was downloaded from
     a remote source. An inline function.
 
-    @return If less than EMISS_UPDATE_INTERVAL, 0, if equal to or greater, 1, on error, -1.
-    @see emiss_retrieve_data(), EMISS_UPDATE_INTERVAL
+    @return If less than `EMISS_UPDATE_INTERVAL`, `0`, if equal to or greater, `1`, on error, `-1`.
+    @see emiss_retrieve_data(), `EMISS_UPDATE_INTERVAL`
 */
 inline int
 emiss_should_check_for_update()
 {
-    time_t last_access_time, current_time;
-	GET_LAST_DATA_ACCESS(last_access_time);
-	check(time(&current_time) != -1, ERR_FAIL, EMISS_ERR,
-        "obtaining current time in seconds");
-	if (difftime(current_time, last_access_time) >= EMISS_UPDATE_INTERVAL) {
+    time_t current_time, last_access_time = (time_t) strtol(getenv("LAST_DATA_ACCESS"), 0, 10);
+    if (last_access_time == LONG_MAX)
+        log_err(ERR_FAIL_A, EMISS_ERR, "converting string to long:", "integer overflow");
+	else if (time(&current_time) == -1)
+        log_err(ERR_FAIL, EMISS_ERR, "obtaining current time in seconds");
+	else if (difftime(current_time, last_access_time) >= EMISS_UPDATE_INTERVAL)
         return 1;
-	}
-    return 0;
-error:
+    else
+        return 0;
     return -1;
 }
 
@@ -289,8 +289,7 @@ emiss_retrieve_data();
 
 /*! Allocate and initialize the data parser & updater context structure.
 
-    @param tui_chart_worldmap_data_path [TODO]
-    @param tui_chart_worldmap_data_size [TODO]
+    @param tui_chart_data_path [TODO]
 
     @return The initialized data update context structure or NULL on error.
 
@@ -309,7 +308,7 @@ void
 emiss_free_update_ctx(emiss_update_ctx_st *upd_ctx);
 
 /*! Preview csv files and check "Last updated" information from the Worldbank data files, if newer
-    than @a last_update, update records in the database concerning the data in that file.
+    than `last_update`, update records in the database concerning the data in that file.
 
     For data of type "Meta", run an update in case any other update is run. Worldbank
     sadly does not annotate their metadata csv files with dates.

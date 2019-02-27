@@ -12,7 +12,6 @@
 **  INCLUDES
 */
 
-#include <stddef.h>
 #include <stdint.h>
 #include <libpq-fe.h>
 
@@ -23,53 +22,34 @@
 /*! Error message provider name. */
 #define WLPQ "wlpq"
 
+/*! Defines the version number of this interface. */
 #define WLPQ_VERSION_MAJOR 0
-#define WLPQ_VERSION_MINOR 2
+#define WLPQ_VERSION_MINOR 3
 #define WLPQ_VERSION_PATCH 0
 
-/*! Defines an expression for calculating the total number of threads spawned by wlpq. */
-#define WLPQ_NTOTAL_THREADS(nquery_threads, npoll_threads)\
-    (nquery_threads + npoll_threads * nquery_threads)
-
-/*! Define lower bounds for the number of simultaneous database connections, query threads,
-    poller threads opened per query thread and a derived total thread count thereof. These are not
-    redefinable by the user at compile-time.
+/*! Lower bounds for the number of simultaneous database connections and connection query/poll threads.
+    These are not redefinable by the user at compile-time.
 *////@{
 #define WLPQ_MIN_NCONN 1
-#define WLPQ_MIN_NQUERY_THREADS 1
-#define WLPQ_MIN_NPOLL_THREADS 1
-#define WLPQ_MIN_NTOTAL_THREADS WLPQ_NTOTAL_THREADS(WLPQ_MIN_NQUERY_THREADS, WLPQ_MIN_NPOLL_THREADS)
+#define WLPQ_MIN_NCONNTHREADS 1
 ///@}
 
-/*! Define default higher bounds for the number of simultaneous database connections, query
-    threads, poller threads opened per query thread and a derived total thread count thereof.
+/*! Default higher bounds for the number of simultaneous database connections and
+    connection query/poll threads.
+
     These defaults are used if the user does not pass the relevant define at compile time, i.e.
     an option of the form -D[NAME]=[VALUE].
-
-    The following rule is also enforced:
-
-    Either @def WLPQ_MAX_NQUERY_THREADS or @def WLPQ_MAX_NPOLL_THREADS may not be greater than
-    @def WLPQ_MAX_NCONN.
 *////@{
 #ifndef WLPQ_MAX_NCONN
-    #define WLPQ_MAX_NCONN 20
+    #define WLPQ_MAX_NCONN 19
 #endif
-#ifndef WLPQ_MAX_NQUERY_THREADS
-    #define WLPQ_MAX_NQUERY_THREADS 1
-#endif
-#ifndef WLPQ_MAX_NPOLL_THREADS
-    #define WLPQ_MAX_NPOLL_THREADS 1
-#elif WLPQ_MAX_NPOLL_THREADS > WLPQ_MAX_NCONN
-    #define
+#ifndef WLPQ_MAX_NCONNTHREADS
+    #define WLPQ_MAX_NCONNTHREADS WLPQ_MIN_NCONNTHREADS
 #endif
 ///@}
-#define WLPQ_MAX_NTOTAL_THREADS WLPQ_NTOTAL_THREADS(WLPQ_MAX_NQUERY_THREADS, WLPQ_MAX_NPOLL_THREADS)
-/*! Define the derived maximum number of connections per query and per poller thread. *////@{
-#define WLPQ_MAX_NCONN_PER_QUERY_THREAD\
-    (unsigned) (WLPQ_MAX_NCONN / WLPQ_MAX_NQUERY_THREADS)
-#define WLPQ_MAX_NCONN_PER_POLL_THREAD\
-    (unsigned) (WLPQ_MAX_NCONN_PER_QUERY_THREAD / WLPQ_MAX_NPOLL_THREADS)
-///@}
+
+/*! Define the derived maximum number of connections per query/poll thread. */
+#define WLPQ_MAX_NCONN_PER_THREAD (unsigned) (WLPQ_MAX_NCONN / WLPQ_MAX_NCONNTHREADS)
 
 /*! The stack size in bytes available to threads launched by functions of this interface.
     Change at compile-time by passing a -DWLPQ_STACK_SIZE=value to the compiler. */
@@ -98,7 +78,7 @@
 #endif
 
 /*
-**  TYPEDEFS
+**  TYPES
 */
 
 /*! An enum type of possible thread states. */
@@ -125,7 +105,7 @@ typedef void wlpq_res_handler_ft(PGresult *res, void *arg);
 typedef void wlpq_notify_handler_ft(PGnotify *notify, void *arg);
 
 /*
-**  FUNCTION PROTOTYPES
+**  FUNCTIONS
 */
 
 /*! Deallocate a previously allocated connection context structure.
@@ -248,7 +228,7 @@ wlpq_query_run_blocking(wlpq_conn_ctx_st *ctx, char *stmt_or_cmd,
     char **param_values, int *param_lengths, uint8_t nparams,
     wlpq_res_handler_ft *callback, void *cb_arg);
 
-/*! Launch the query sender and connection poller threads.
+/*! Launch the sends/poll threads.
 
     Blocks until complete.
 
@@ -260,7 +240,7 @@ wlpq_query_run_blocking(wlpq_conn_ctx_st *ctx, char *stmt_or_cmd,
 int
 wlpq_threads_launch(wlpq_conn_ctx_st *ctx);
 
-/*! Request the launch of the query sender and connection poller threads.
+/*! Request the launch of send/poll threads.
 
     Uses a temporary separate pthread to handle the process asynchronously.
 
@@ -272,7 +252,7 @@ wlpq_threads_launch(wlpq_conn_ctx_st *ctx);
 int
 wlpq_threads_launch_async(wlpq_conn_ctx_st *ctx);
 
-/*! Set the number of database connections to send queries over.
+/*! Set the number of database connections to send queries over (per-thread).
 
     The function will silently fail if nconn < 1. Make sure your database doesn't exceed its
     credentials!
@@ -285,17 +265,7 @@ wlpq_threads_launch_async(wlpq_conn_ctx_st *ctx);
 void
 wlpq_threads_nconn_set(wlpq_conn_ctx_st *ctx, unsigned nconn);
 
-/*! Set the number of poller threads per query sender thread.
-
-    @param ctx      A pointer to the connection context structure.
-    @param npoll    The number of pollers, function will silently fail if npoll < 1.
-
-    @see wlpq_threads_launch(), wlpq_threads_launch_async(), wlpq_threads_nconn_set()
-*/
-void
-wlpq_threads_npoll_set(wlpq_conn_ctx_st *ctx, unsigned npoll);
-
-/*! Stop all query sender and connection poller threads, blocks until complete.
+/*! Stop all send/poll threads, blocks until complete.
 
     @param ctx A pointer to the connection context structure.
 

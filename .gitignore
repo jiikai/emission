@@ -1,5 +1,4 @@
 .sass-lint.yml
-Procfile
 ./resources/css/.sass-lint.yml
 ./doc/Doxyfile
 ./bin/*

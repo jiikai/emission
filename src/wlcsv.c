@@ -11,6 +11,7 @@
 
 #include "wlcsv.h"
 #include <ctype.h>
+#include <stddef.h>
 #include <stdbool.h>
 #include "dbg.h"
 
@@ -83,7 +84,7 @@ struct wlcsv_ctx {
         wlcsv_callback_entry_st    *tbl[WLCSV_NCALLBACKS_MAX];
         uint8_t                     tbl_length;
         uint8_t                     tbl_idx_skip[WLCSV_NCALLBACKS_MAX];
-        uint8_t                     tbl_idx_type[NCALLBACK_MATCH_TYPES];
+        uint8_t                     tbl_idx_type[WLCSV_NCALLBACK_MATCH_TYPES];
         uint8_t                     tbl_offs_col;
     } callbacks;
     wlcsv_state_st              state;
@@ -265,7 +266,9 @@ static void
 callbacks_forward(void *field, size_t len, void *data)
 {
     struct wlcsv_ctx *ctx = (struct wlcsv_ctx *)data;
-    if (field && len) {
+    bool process = !(ctx->state.options & WLCSV_IGNORE_EMPTY_FIELDS) ? true
+                    : field && len ? true : false;
+    if (process) {
         const char *str = (const char *)field;
         if (ctx->ignore_regex) {
             /* Check if this field should be ignored. */
@@ -500,7 +503,7 @@ wlcsv_file_read(struct wlcsv_ctx *ctx, size_t buf_size)
     ctx->state.col = 0;
     ctx->state.row = 0;
     buf_size      += 0x100;
-    buffer         = malloc(buf_size);
+    buffer         = calloc(1, buf_size);
     check(buffer, ERR_MEM, WLCSV);
 
     size_t read  = fread(buffer, 1, buf_size, fp);

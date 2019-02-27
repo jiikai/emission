@@ -3,16 +3,17 @@
   <head>
     <meta charset="utf-8">
     <meta http-equiv="x-ua-compatible" content="ie=edge">
-    <title>Emission: about</title>
-    <meta name="description" content="A web app for visualizing data provided by Worldbank."/>
+    <title>Emission: About</title>
+    <meta name="description" content="Worldbank indicator data visualization"/>
+    <meta name="keywords"
+          content="Worldbank, indicator, CO2, emissions, data, chart, graph, visualization"/>
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no"/>
-    <!--<link rel="manifest" href="site.webmanifest">-->
     <!-- DNS prefetch -->
     <link rel="dns-prefetch" href="//use.fontawesome.com">
     <link rel="dns-prefetch" href="//code.jquery.com">
     <link rel="dns-prefetch" href="//uicdn.toast.com">
     <!-- Local CSS -->
-    <link rel="stylesheet" type="text/css" href="%s/css/all.min.css">
+    <link rel="stylesheet" type="text/css" href="./css/all.min.css">
     <!-- Fontawesome CSS (CDN)  -->
     <link rel="stylesheet" type="text/css"
           href="https://use.fontawesome.com/releases/v5.6.3/css/all.css"
@@ -35,6 +36,23 @@
       </div>
     </header>
     <div class="vspace"></div>
-    <p>Some about text.</p>
+    <h1 class="header">About this app</h1>
+    <div class="p-narrow">
+      <p>The Emission app is built around the <a href="https://github.com/jiikai/emission">emiss API</a>, developed with the ultimate aim of providing a general, lightweight interface in C for extracting, storing, and serving data by the <a href="https://www.worldbank.org">World Bank</a> (and perhaps other parties).</p>
+
+      <p>More chart types, filtering options, etc. may be added to this app in the future. Maybe a more fetching stylesheet as well. However, this developer's focus may well be elsewhere, in the backend of the API or otherwise.</p>
+
+      <p>The app is subject to <a href="https://github.com/jiikai/emission/blob/master/LICENSE">this license</a>. Thanks for visiting & have a nice day!</p>
+      <h2 class="header">Try the app by clicking on the button below.</h2>
+      <br>
+      <div class="vspace"></div>
+      <form action="/new" method="GET">
+        <div class="container-button-row">
+          <button class="button-blk greater" type="submit"
+                  title="Create a chart with the given parameters.">Generate a new chart
+          </button>
+        </div>
+      </form>
+    </div>
   </body>
 </html>

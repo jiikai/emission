@@ -1,14 +1,21 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
-    <title>Emission</title>
+
     <meta charset="utf-8">
-    <meta name="description" content="Worldbank indicator data visualization">
+    <meta http-equiv="x-ua-compatible" content="ie=edge"/>
+    <title>Emission</title>
+    <meta name="description" content="Worldbank indicator data visualization"/>
     <meta name="keywords"
-          content="Worldbank, indicator, CO2, emissions, data, chart, graph, visualization">
+          content="Worldbank, indicator, CO2, emissions, data, chart, graph, visualization"/>
+
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-    <!-- Load local CSS -->
-    <link rel="stylesheet" type="text/css" href="%s/css/style.min.css">
+    <!-- DNS prefetch -->
+    <link rel="dns-prefetch" href="//use.fontawesome.com">
+    <link rel="dns-prefetch" href="//code.jquery.com">
+    <link rel="dns-prefetch" href="//uicdn.toast.com">
+    <!-- Local CSS -->
+    <link rel="stylesheet" type="text/css" href="./css/all.min.css">
     <!-- Prefetch fontawesome CSS (CDN)  -->
     <link rel="prefetch" type="text/css"
           href="https://use.fontawesome.com/releases/v5.6.3/css/all.css"
@@ -19,8 +26,6 @@
           href="https://code.jquery.com/jquery-3.3.1.slim.min.js"
           integrity="sha256-3edrmyuQ0w65f8gfBsqowzjJe2iM6n0nKciPUp8y+7E="
           crossorigin="anonymous">
-    <!-- Preload tui.chart CDN address -->
-    <link rel="preload" href="https://uicdn.toast.com">
   </head>
   <body>
     <header id="luxbar" class="luxbar-fixed">
@@ -38,10 +43,17 @@
       </div>
     </header>
     <div class="vspace"></div>
-    <form action="/new" method="GET">
-      <!--<div id="wrapper">-->
-        <button class="button-primary" type="submit">Generate a new chart</button>
-      <!--</div>-->
-    </form>
+    <h1 class="header">Emission</h1>
+    <div class="p-narrow">
+      <p>This web app allows you to visualize data extracted from <a href="https://www.worldbank.org">World Bank</a> indicator statistics. Currently, indicators bearing on the development of total population (by country) and carbon dioxide emissions (by country) are included. Per capita carbon load in each enlisted country is also available.</p>
+      <h3 class="header">Try it by clicking on the button below!</h3>
+      <form action="/new" method="GET">
+        <div class="container-button-row">
+          <button class="button-blk greater" type="submit"
+                  title="Create a chart with the given parameters.">Generate a new chart
+          </button>
+        </div>
+      </form>
+    </div>
   </body>
 </html>

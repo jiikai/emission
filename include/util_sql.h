@@ -1,6 +1,7 @@
 /*  @file       util_sql.h
     @brief      A set of convenience macros for formatting SQL statements.
-    @copyright  (c) Joa Käis (github.com/jiikai) 2017-2018 (MIT). See ../LICENSE.
+    @author     Joa Käis (github.com/jiikai).
+    @copyright  Public domain.
 */
 
 #ifndef _util_sql_h_

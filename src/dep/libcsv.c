@@ -44,7 +44,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
                    field is either ended or the quote is literal
 */
 
-#define MEM_BLK_SIZE 1024
+#define MEM_BLK_SIZE 128
 
 #define SUBMIT_FIELD(p) \
   do { \

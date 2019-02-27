@@ -1,8 +1,7 @@
 /*  @file       dbg.h
     @brief      A set of debug macros.
-
-    This header is almost identical to the "dbg.h" from Zed Shaw's "Learn C The
-    Hard Way", expect for:
+    @details    This header draws from the file of the same name from Zed Shaw's "Learn C The Hard
+                Way", expect for:
 
     1)  Substitution of the GCC extension `##__VA_ARGS__` with the standard `__VA_ARGS__` macro.
     2)  Removal of check_mem(A), a convenience version of check(A, M, ...) for memory errors.
@@ -13,6 +12,11 @@
 
         Change 1) results in the variadic macros not accepting zero arguments for __VA_ARGS__.
         This is not an issue if a format string with 1 or more arguments is used with them.
+
+    @author     Zed E. Shaw (original), Joa Käis (github.com/jiikai).
+    @copyright  License of the original copy:
+
+                https://github.com/zedshaw/learn-c-the-hard-way-lectures/blob/master/LICENSE
 */
 
 #ifndef _dbg_h_
@@ -87,4 +91,5 @@
 #define ERR_NALLOW_A "[%s] %s not allowed, use %s instead."
 #define ERR_EXTERN "[%s]: %s."
 #define ERR_EXTERN_AT "[%s]: %s (%d)."
-#endif
+
+#endif /* _dbg_h_ */

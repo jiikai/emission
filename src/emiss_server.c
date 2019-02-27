@@ -12,7 +12,7 @@
 volatile sig_atomic_t terminate;
 
 /*
-**  MACRO CONSTANTS
+**  MACROS
 */
 
 /*  Options for the CivetWeb server. *////@{
@@ -99,10 +99,6 @@ volatile sig_atomic_t terminate;
 #define HTTP_MIMETYPE_SVG "font/svg"
 #define HTTP_MIMETYPE_TTF "font/ttf"
 
-/*
-**  MACRO FUNCTIONS
-*/
-
 /*  Port protocol getter expression. */
 #define DEFINE_PROTOCOL(server, i)\
     (server->civet_ports[i].is_ssl ? "https" : "http")
@@ -118,7 +114,7 @@ volatile sig_atomic_t terminate;
     }
 
 /*
-**  TYPE AND STRUCT DEFINITIONS
+**  TYPES AND STRUCTURES
 */
 
 struct emiss_server_ctx {
@@ -132,33 +128,33 @@ struct emiss_server_ctx {
 };
 
 /*
-**  FUNCTION DEFINITIONS
+**  FUNCTIONS
 */
 
-/*  STATIC FUNCTIONS */
+/*  STATIC  */
 
 static inline int
 inl_send_error_response(struct mg_connection *conn, const int code)
 {
     int ret = -1;
-    if (code == 404) {
+    if (code == 404)
         ret = mg_printf(conn, HTTP_RESPONSE_HDR, 404,
             RES_404_TXT, 0UL, HTTP_MIMETYPE_PLAIN, "close",
             TRANSFER_ENCODING_NONE, "");
-    } else if (code == 405) {
+    else if (code == 405)
         ret = mg_printf(conn, HTTP_RESPONSE_HDR, 405,
             RES_405_TXT, 0UL, HTTP_MIMETYPE_PLAIN, "close",
             TRANSFER_ENCODING_NONE, "Allow: GET\r\n");
-    } else if (code == 500) {
+    else if (code == 500)
         ret = mg_printf(conn, HTTP_RESPONSE_HDR, 500,
             RES_500_TXT, 0UL, HTTP_MIMETYPE_PLAIN, "close",
             TRANSFER_ENCODING_NONE, "Allow: GET\r\n");
-    }
-    if (ret == -1) {
+
+    if (ret == -1)
         return 0;
-    } else if (!ret) {
+    else if (!ret)
         return 418;
-    }
+
     return code;
 }
 
@@ -183,6 +179,7 @@ emiss_conn_printf_function(void *at,
     const char *restrict conn_action,
     const char *restrict frmt, ...)
 {
+    printf("output\n");
 	struct mg_connection *conn = (struct mg_connection *)at;
     /*  Try to send response header. */
     int ret = mg_printf(conn, HTTP_RESPONSE_HDR, http_response_code,
@@ -195,8 +192,10 @@ emiss_conn_printf_function(void *at,
     /*  Send message body. */
     va_list args;
 	va_start(args, frmt);
+    printf("send body\n");
 	ret = modified_mg_vprintf(conn, frmt, args);
     va_end(args);
+    printf("sent!\n" );
 	return ret;
 }
 
@@ -207,10 +206,10 @@ css_request_handler(struct mg_connection *conn, void *cbdata)
 {
 	const struct mg_request_info *req_info = mg_get_request_info(conn);
     int ret = mg_strncasecmp(req_info->request_method, "GET", 3);
-    if (ret) {
+    if (ret)
         return inl_send_error_response(conn, 405);
-    }
-	mg_send_mime_file(conn, (const char *)cbdata, HTTP_MIMETYPE_CSS);
+
+    mg_send_mime_file(conn, (const char *)cbdata, HTTP_MIMETYPE_CSS);
 	return 200;
 }
 
@@ -219,9 +218,9 @@ font_request_handler(struct mg_connection *conn, void *cbdata)
 {
 	const struct mg_request_info *req_info = mg_get_request_info(conn);
     int ret = mg_strncasecmp(req_info->request_method, "GET", 3);
-    if (ret) {
+    if (ret)
         return inl_send_error_response(conn, 405);
-    }
+
     char filepath[0x100] = {0};
     const char *req_font = strchr(strchr(req_info->local_uri, '/') + 1, '/');
     if (!strstr(req_font, (char *)cbdata)) {
@@ -244,9 +243,8 @@ static_resource_request_handler(struct mg_connection *conn, void *cbdata)
 {
     const struct mg_request_info *req_info = mg_get_request_info(conn);
     int ret = mg_strncasecmp(req_info->request_method, "GET", 3);
-    if (ret) {
+    if (ret)
         return inl_send_error_response(conn, 405);
-    }
 
     emiss_resource_ctx_st *rsrc_ctx = (emiss_resource_ctx_st *)cbdata;
 	const char *requested   = strrchr(req_info->local_uri, '/');
@@ -254,7 +252,8 @@ static_resource_request_handler(struct mg_connection *conn, void *cbdata)
                             ? 0 : !mg_strncasecmp(requested, EMISS_URI_NEW, 2)
                             ? 1 : !mg_strncasecmp(requested, "/param.js", 2)
                             ? 2 : !mg_strncasecmp(requested, "/verge.min.js", 2)
-                            ? 3 : 3;
+                            ? 3 : !mg_strncasecmp(requested, EMISS_URI_ABOUT, 2)
+                            ? 4 : 0;
     const char *resource    = emiss_get_static_resource(rsrc_ctx, rsrc_idx);
     const char *mime_type   = resource[strlen(resource) - 1] == 's'
                             ? HTTP_MIMETYPE_JS
@@ -280,9 +279,8 @@ template_resource_request_handler(struct mg_connection *conn, void *cbdata)
 {
 	const struct mg_request_info *req_info = mg_get_request_info(conn);
 	int ret = mg_strncasecmp(req_info->request_method, "GET", 3);
-	if (ret) {
+	if (ret)
         return inl_send_error_response(conn, 405);
-    }
 
 	const char *requested = strrchr(req_info->request_uri, '/') + 1;
 	emiss_template_st *template_data = (emiss_template_st *)cbdata;
@@ -305,9 +303,8 @@ template_resource_request_handler(struct mg_connection *conn, void *cbdata)
 static void
 dyno_signal_handler(int sig)
 {
-    if (sig == SIGTERM) {
+    if (sig == SIGTERM)
         terminate = 1;
-    }
 }
 
 #ifndef NDEBUG
@@ -353,9 +350,8 @@ emiss_init_server_ctx(emiss_template_st *template_data)
 #ifndef NDEBUG
 	/*  Gather system information for diagnostics. */
     ret = inl_get_sys_info(server);
-    if (!ret) {
+    if (!ret)
 		log_warn(ERR_FAIL, EMISS_MSG, "obtaining system information.");
-	}
 #endif
 
     /*  Associate a function to print output to client connection. */
@@ -364,22 +360,24 @@ emiss_init_server_ctx(emiss_template_st *template_data)
     server->template_data = template_data;
 
     /*  Set up request handler callbacks for CivetWeb. */
+    mg_set_request_handler(civet_ctx, EMISS_URI_INDEX,
+            static_resource_request_handler, template_data->rsrc_ctx);
     mg_set_request_handler(civet_ctx, EMISS_URI_NEW,
-        static_resource_request_handler, template_data->rsrc_ctx);
+            static_resource_request_handler, template_data->rsrc_ctx);
 	mg_set_request_handler(civet_ctx, EMISS_URI_PARAM_JS,
-        static_resource_request_handler, template_data->rsrc_ctx);
+            static_resource_request_handler, template_data->rsrc_ctx);
     mg_set_request_handler(civet_ctx, EMISS_URI_VERGE_JS,
-        static_resource_request_handler, template_data->rsrc_ctx);
+            static_resource_request_handler, template_data->rsrc_ctx);
 
     mg_set_request_handler(civet_ctx, EMISS_URI_SHOW,
-        template_resource_request_handler, server->template_data);
+            template_resource_request_handler, server->template_data);
     mg_set_request_handler(civet_ctx, EMISS_URI_CHART_JS,
-        template_resource_request_handler, server->template_data);
+            template_resource_request_handler, server->template_data);
 
     mg_set_request_handler(civet_ctx, EMISS_URI_STYLE_CSS,
-        css_request_handler, EMISS_RESOURCE_ROOT EMISS_URI_STYLE_CSS);
+            css_request_handler, EMISS_RESOURCE_ROOT EMISS_URI_STYLE_CSS);
     mg_set_request_handler(civet_ctx, EMISS_URI_FONTS,
-        font_request_handler, EMISS_VALID_FONT_NAMES);
+            font_request_handler, EMISS_VALID_FONT_NAMES);
 
 #ifndef NDEBUG
     mg_set_request_handler(civet_ctx, EMISS_URI_EXIT, exit_request_handler, stdout);
@@ -398,15 +396,12 @@ emiss_free_server_ctx(emiss_server_ctx_st *server_ctx)
 {
     if (server_ctx) {
         if (server_ctx->civet_ctx) {
-            if (server_ctx->civet_ctx) {
-                mg_stop(server_ctx->civet_ctx);
-            }
-            if (server_ctx->sys_info) {
-                free(server_ctx->sys_info);
-            }
-            free(server_ctx);
+            mg_stop(server_ctx->civet_ctx);
+            mg_exit_library();
         }
-        mg_exit_library();
+        if (server_ctx->sys_info)
+            free(server_ctx->sys_info);
+        free(server_ctx);
     }
 }
 

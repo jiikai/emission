@@ -12,7 +12,6 @@
 **  INCLUDES
 */
 
-#include <stddef.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
@@ -34,14 +33,17 @@
 
 /*! Currently supports matching by a keyword (strcmp(), a PCRE regex (pcre_exec(),
     and the current row and column numbers. */
-#define NCALLBACK_MATCH_TYPES 4
+#define WLCSV_NCALLBACK_MATCH_TYPES 4
 
 /*!  Option flag for ignoring empty fields completely when parsing. */
 #define WLCSV_IGNORE_EMPTY_FIELDS 1
 
-/*!  Maximun number of enlisted callbacks, including the default but excluding the end-of-row callback. */
+/*! Maximun number of enlisted callbacks, including the default
+    but excluding the end-of-row callback. */
 #ifndef WLCSV_NCALLBACKS_MAX
-    #define WLCSV_NCALLBACKS_MAX 17
+    #define WLCSV_NCALLBACKS_MAX 0x10
+#elif ((WLCSV_NCALLBACKS_MAX - 1) % WLCSV_NCALLBACK_MATCH_TYPES)
+    #define  WLCSV_NCALLBACKS_MAX 0x10
 #endif
 
 /*  FUNCTION-LIKE MACROS */
@@ -53,7 +55,7 @@
 
 
 /*  A getter expression for the state structure (type wlcsv_state_st, see below). */
-#define WLCSV_STATE_MEMBER_GET(stt, member)\
+#define WLCSV_STATE_MEMB_GET(stt, member)\
     (stt ? stt->member : UINT_MAX)
 
 /*
@@ -120,14 +122,24 @@ typedef void wlcsv_eor_callback_ft(void *);
 
 /* ENUM & UNION TYPES */
 
+/*! Match types for callbacks.
+
+    @see wlcsv_callback_match_to_ut, wlcsv_callback_ft, wlcsv_callbacks_set()
+*/
 typedef enum wlcsv_callback_match_by {
     KEYWORD, REGEX, ROW, COLUMN
 } wlcsv_callback_match_by_et;
 
+/*! A union type for passing criteria to match a callback against.
+
+    @member row_or_col  Corresponds to wlcsv_callback_match_by_et type ROW or COLUMN.
+    @member key_or_rgx  Corresponds to wlcsv_callback_match_by_et type KEYWORD or REGEX.
+
+    @see wlcsv_callback_match_by_et, wlcsv_callback_ft, wlcsv_callbacks_set()
+*/
 typedef union {
     unsigned                    row_or_col;
     char                       *key_or_rgx;
-    wlcsv_callback_match_ft    *cb_match_function;
 } wlcsv_callback_match_to_ut;
 
 /*
@@ -139,57 +151,62 @@ typedef union {
     @param ctx A previously initialized instance of the context structure.
 
     @remark Does nothing if @a ctx is NULL.
-
     @see wlcsv_init()
 */
 void
 wlcsv_free(wlcsv_ctx_st *ctx);
 
-/*! Initializes the libcsv wrapper struct.
+/*! Initializes the libcsv wrapper context structure.
 
-    @param ignore_rgx       A regular expression with PCRE syntax, a match causes a field to be
-                            ignored. Can be NULL or changed later.
-    @param default_callback A function to call if no other condition holds for a field. Can be NULL
-                            or changed later.
-    @param offset           The offset in lines from the beginning of the file that will be skipped
-                            over. Default 0, can be changed later.
-    @param options          [TODO]
+    @param  ignore_rgx              A PCRE regex, a match causes a field to be ignored.
+    @param  default_callback        A function to call if no other condition holds for a field.
+    @param  default_callback_data   A default data pointer to be passed to callbacks.
+    @param  nkeycallbacks,
+            nrgxcallbacks,
+            nrowcallbacks,
+            ncolcallbacks,          Total count of callbacks by keyword, regex, row or column match.
+    @param lineskip                 Offset in lines from the beginning of the file to be skipped
+                                    over. Default 0, can be set later.
+    @param options                  [TODO]
+
+    @remark Parameters ignore_rgx, default_callback, default_callback_data, lineskip and options can
+    be set or changed later.
 
     @return The initialized struct or NULL on error.
-    @see wlcsv_free(), wlcsv_set_default_callback(), wlcsv_set_ignore_regex(),
-    wlcsv_set_offset(), wlcsv_set_options()
+    @see wlcsv_free(), wlcsv_callbacks_default_set(), wlcsv_ignore_regex_set(),
+    wlcsv_state_lineskip_set(), wlcsv_state_options_set()
 */
 wlcsv_ctx_st *
 wlcsv_init(char *ignore_rgx, wlcsv_callback_ft default_callback,
         void *default_callback_data, uint8_t nkeycallbacks,
         uint8_t nrgxcallbacks, uint8_t nrowcallbacks,
-        uint8_t ncolcallbacks, unsigned offset,
+        uint8_t ncolcallbacks, unsigned lineskip,
         unsigned options);
 
 /*! Set a new target csv file path.
 
-    @param ctx:     An initialized context structure handle.
+    @param ctx      An initialized context structure handle.
     @param path,
-           len:     The path to the target file and its string length.
+           len      The path to the target file and its string length.
 
     @return 1 on success, 0 if any of the parameters were NULL/0 and -1 on memory error.
-    @see @see wlcsv_free(), wlcsv_init(), wlcsv_read(), wlcsv_preview()
+    @see wlcsv_free(), wlcsv_init(), wlcsv_read(), wlcsv_preview()
 */
 int
 wlcsv_file_path(wlcsv_ctx_st *ctx, const char *path, size_t len);
 
-/*! Sends the first @a nrows from the csv file set via wlcsv_set_target_path() to *callback*.
+/*! Sends the first `nrows` from the csv file set via wlcsv_set_target_path() to `callback`.
 
-    Can be used for e.g. determining a desired line offset, header field names and other structural
+    @param ctx          An initialized context structure handle.
+    @param nrows        The number of rows to preview.
+    @param buf_size     An expected byte size of the data in memory (optional).
+    @param callback     A callback function.
+
+    @remark Can be used for e.g. determining a lineskip, header field names and other structural
     features of the csv file.
 
-    Contrary to callbacks used when processing files with wlcsv_read(), @a callback is passed
+    @remark Contrary to callbacks used when processing files with wlcsv_read(), `callback` is passed
     directly to the underlying libcsv parser. As such filtering rules have no effect.
-
-    @param ctx:         An initialized context structure handle.
-    @param nrows:       The number of rows to preview.
-    @param buf_size:    An expected byte size of the data in memory (optional).
-    @param callback:    A callback function.
 
     @return The number of parsed bytes on success or -1 on NULL @a ctx or memory/file stream error.
     @see wlcsv_free(), wlcsv_init(), wlcsv_read()
@@ -200,16 +217,23 @@ wlcsv_file_preview(wlcsv_ctx_st *ctx, unsigned nrows, size_t buf_size,
 
 /*! Processes a csv file, the path to which was set via wlcsv_set_target_path().
 
-    @param ctx:         An initialized context structure handle.
-    @param buf_size:    Byte size of the data.
+    @param ctx          An initialized context structure handle.
+    @param buf_size     Byte size of the data.
 
     @return Count of parsed bytes, or 0 if no path had previously been set, or -1 on NULL @a ctx or
             a memory/file stream error.
-
     @see wlcsv_free(), wlcsv_init(), wlcsv_preview()
 */
 int
 wlcsv_file_read(wlcsv_ctx_st *ctx, size_t buf_size);
+
+/*!*/
+int
+wlcsv_callbacks_active(wlcsv_ctx_st *ctx, uint8_t id);
+
+/*!  */
+int
+wlcsv_callbacks_clear(wlcsv_ctx_st *ctx, uint8_t id);
 
 /*! */
 void
@@ -217,21 +241,17 @@ wlcsv_callbacks_clear_all(wlcsv_ctx_st *ctx);
 
 /*! Set or unset the default callback function and/or the default callback data.
 
-    Does nothing if @a ctx is NULL.
+    Does nothing if `ctx == NULL`.
 
     @param ctx          An initialized context structure handle.
-    @param new_default  A function pointer to the new default callback function. If NULL, no
+    @param callback  A function pointer to the new default callback function. If NULL, no
                         function will be called if no keyword/row/column matches exist for the
                         current field.
+    @param data
     @see wlcsv_free(), wlcsv_init(), wlcsv_read(), wlcsv_reset_callbacks()
 */
 void
 wlcsv_callbacks_default_set(wlcsv_ctx_st *ctx, wlcsv_callback_ft *callback, void *data);
-
-/*! Remove entry from list and erase its contents.
-    This entry pointer should not be used afterwards. */
-int
-wlcsv_callbacks_clear(wlcsv_ctx_st *ctx, uint8_t i);
 
 /*! Set or unset a new end-of-row callback function.
 
@@ -246,7 +266,7 @@ wlcsv_callbacks_clear(wlcsv_ctx_st *ctx, uint8_t i);
 void
 wlcsv_callbacks_eor_set(wlcsv_ctx_st *ctx, wlcsv_eor_callback_ft *eor_callback);
 
-/*! Set new callback matching criteria entry.
+/*! Associate a callback function with a regex, keyword, row or a column number.
 
     @param ctx           An initialized context structure handle.
     @param match_by      An enum type denoting the property against which to match.
@@ -256,10 +276,10 @@ wlcsv_callbacks_eor_set(wlcsv_ctx_st *ctx, wlcsv_eor_callback_ft *eor_callback);
                             Otherwise the context-wise data pointer is used (if set).
     @param append        If 0, append this entry to list end. Else prepend as list head.
 
-    @return An opaque handle pointing to the created structure. Use it with other functions for
-    manipulating the callback match list.
+    @return  An id for this callback association on success or `UINT8_MAX` on any error.
 
-    @see
+    @see wlcsv_callbacks_clear(), wlcsv_callbacks_default_set(), wlcsv_callbacks_eor_set(),
+    wlcsv_callbacks_toggle()
 */
 uint8_t
 wlcsv_callbacks_set(wlcsv_ctx_st *ctx,
@@ -269,25 +289,35 @@ wlcsv_callbacks_set(wlcsv_ctx_st *ctx,
     void *callback_data,
     unsigned once);
 
-/*!*/
+/*! Activate a disabled or deactive an enabled callback.
+
+    @param ctx      An initialized context structure handle.
+    @param id       An id of the target callback, as obtained from wlcsv_callbacks_set().
+
+    @return `1` on success, `0` on `ctx == NULL` and `-1` if no callback with `id` was found.
+    @see wlcsv_callbacks_active(), wlcsv_callbacks_set()
+*/
 int
 wlcsv_callbacks_toggle(wlcsv_ctx_st *ctx, uint8_t id);
-
-/*!*/
-int
-wlcsv_callbacks_active(wlcsv_ctx_st *ctx, uint8_t id);
 
 /*! Set or unset a PCRE regex that will cause any field that matches to be ignored.
 
     @param ctx      An initialized context structure handle.
     @param regex    A regular expression string. If NULL, no fields are ignored by a regex match.
 
-    @return 1 on success, 0 on null @a ctx or -1 on error.
-    @see wlcsv_free(), wlcsv_init(), wlcsv_read(), wlcsv_preview()
+    @return `1` on success, `0` on `ctx == NULL` and `-1` on a regex compile error.
+    @see wlcsv_read(), wlcsv_preview()
 */
 int
 wlcsv_ignore_regex_set(wlcsv_ctx_st *ctx, char *regex);
 
+/*! Obtain a pointer to the wlcsv context state structure.
+
+    @param ctx      An initialized context structure handle.
+
+    @return A pointer to the state structure or `NULL` on error.
+    @see wlcsv_state_lineskip_set(), wlcsv_state_options_set(), WLCSV_STATE_MEMB_GET()
+*/
 wlcsv_state_st *
 wlcsv_state_get(wlcsv_ctx_st *ctx);
 

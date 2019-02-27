@@ -9,6 +9,7 @@
 #include "emiss.h"
 
 #include <math.h>
+#include "util_json.h"
 #include "util_sql.h"
 
 /*
@@ -25,31 +26,6 @@
 /*
 **  FUNCTION MACROS
 */
-
-/*  Macros for formatting JSON entries. */
-
-#define JSON_DATA_ENTRY_BY_CODE(output, iso2_code, value, append)\
-    do {\
-        char *frmt = append ? ",{code:'%s',data:%s}" : "{code:'%s',data:%s}";\
-        sprintf(output, frmt, iso2_code, value);\
-    } while (0)
-
-#define JSON_DATA_ENTRY_BY_NAME(output, name, value)\
-    sprintf(output, "{name:'%s',data:[%s]},", name, value);\
-
-#define FRMT_JSON_ENTRY(output, buffer, append, key_name, val_name, ...)\
-    do {\
-        char *frmt = append ? ",{%s:%s}" : "{%s:%s}";\
-        sprintf(buffer, frmt, key_name, val_name);\
-        sprintf(output, buffer, __VA_ARGS__);\
-    } while (0)
-
-#define JSON_SYNTACTIC_LENGTH(key_name, value_name)\
-    strlen(key_name) + strlen(value_name) + 10
-/*  e.g.  strlen("code")       == 4
-        + strlen("data")       == 4
-        + strlen(",{:'',:[]}") == 10
-                               == 18    */
 
 /*  Expands to arguments for a format string specifying the js for producing line charts. */
 
@@ -111,23 +87,24 @@
     CHOOSE_Y_AXIS_TITLE(dataset, per_capita)
 
 #define LINE_CHART_PARAMS_LEN(dataset, per_capita)\
-    (sizeof(CHOOSE_LINE_CHART_TITLE(dataset, per_capita)) - 1\
-    + sizeof(CHOOSE_SUFFIX(dataset, per_capita)) - 1\
-    + sizeof(CHOOSE_Y_AXIS_TITLE(dataset, per_capita)) - 1)
+    strlen(CHOOSE_LINE_CHART_TITLE(dataset, per_capita))\
+    + strlen(CHOOSE_SUFFIX(dataset, per_capita))\
+    + strlen(CHOOSE_Y_AXIS_TITLE(dataset, per_capita))
+
+#define STRLLEN(str_lit) (sizeof(str_lit) - 1U)
 
 #define FILL_YEARDATA(str)\
     do {\
         unsigned i, j;\
         j = 0;\
-        for (i = EMISS_YEAR_ZERO; i <= EMISS_YEAR_LAST; i++) {\
-            sprintf(&str[j], "'%u',", i);\
+        for (i = EMISS_YEAR_ZERO; i <= EMISS_YEAR_LAST; ++i) {\
+            sprintf(&str[j], "\"%u\",", i);\
             j += 7;\
         }\
     } while (0)
 
-#define SET_TIMER_S_MS(timer, _s_timer_val, _ms_timer_val)\
-    timer.tv_sec = _s_timer_val;\
-    timer.tv_nsec = (_ms_timer_val * 1000000L)
+#define TIMESPEC_INIT_S_MS(s_val, ms_val)\
+    (struct timespec) {.tv_sec = s_val, .tv_nsec = ms_val * 1000000L}
 
 /*
 **   STRUCTURES & TYPES
@@ -195,7 +172,7 @@ struct emiss_resource_ctx {
 **  FUNCTIONS
 */
 
-/*  STATIC INLINE  */
+/*  STATIC  */
 
 static inline char *
 escape_single_quotes(char *buf, char *src)
@@ -224,19 +201,19 @@ init_result_storage_s()
     check(dest_buf, ERR_MEM, EMISS_ERR);
     atomic_flag_clear(&dest_buf->in_progress);
     atomic_flag_test_and_set(&dest_buf->in_progress);
-    dest_buf->data = NULL;
+    dest_buf->data = 0;
     dest_buf->count = 0;
-    dest_buf->name = NULL;
+    dest_buf->name = 0;
     return dest_buf;
 error:
-    return NULL;
+    return 0;
 }
 
 
 static inline bstring
 read_to_bstring(char *path, void *placeholder_count_dest)
 {
-    FILE *fp = NULL;
+    FILE *fp = 0;
 	fp = fopen(path, "r");
     check(fp, ERR_FAIL_A, EMISS_ERR, "opening file", path);
     bstring read_here = bread((bNread) fread, fp);
@@ -252,13 +229,12 @@ read_to_bstring(char *path, void *placeholder_count_dest)
         }
         if (nplaceholders)
             memcpy(placeholder_count_dest, &nplaceholders, sizeof(size_t));
-    }
-    fclose(fp);
+    } fclose(fp);
 	return read_here;
 error:
 	if (fp)
 		fclose(fp);
-	return NULL;
+	return 0;
 }
 
 static inline bstring
@@ -269,7 +245,7 @@ frmt_new_chart_html(struct country_data *cdata, char *html)
                     sizeof(char));
     check(buf, ERR_MEM, EMISS_ERR);
     size_t i, j = 0;
-    for (i = 0; i < ncountries; i++) {
+    for (i = 0; i < ncountries; ++i) {
         const char *type = cdata->country_type[i] == 4 ? "a"
                          : cdata->country_type[i] >= 8 ? "n"
                          : "i";
@@ -280,7 +256,7 @@ frmt_new_chart_html(struct country_data *cdata, char *html)
     free(buf);
     return formatted_html;
 error:
-    return NULL;
+    return 0;
 }
 
 static inline bstring
@@ -309,8 +285,6 @@ binary_search_str_arr(int count, size_t el_size, char (*data)[el_size], char *ke
     return -1;
 }
 
-/*  STATIC  */
-
 static void
 callback_countrydata_res_handler(PGresult *res, void *arg)
 {
@@ -319,7 +293,7 @@ callback_countrydata_res_handler(PGresult *res, void *arg)
     size_t rows = PQntuples(res);
     char *field;
     size_t total_byte_length_of_names = 0;
-    for (size_t i = 0; i < rows; i++) {
+    for (size_t i = 0; i < rows; ++i) {
         field = PQgetvalue(res, i, 0);
         if (strlen(field) == 3)
             memcpy(&cdata->iso3[i], field, 3);
@@ -335,18 +309,20 @@ callback_countrydata_res_handler(PGresult *res, void *arg)
             check(cdata->name[i], ERR_MEM, EMISS_ERR);
             memcpy(cdata->name[i], field, len);
         }
-        uint8_t region_id = (uint8_t) atoi(PQgetvalue(res, i, 3));
-        uint8_t income_id = (uint8_t) atoi(PQgetvalue(res, i, 4));
+
+        uint8_t region_id           = (uint8_t) atoi(PQgetvalue(res, i, 3));
+        uint8_t income_id           = (uint8_t) atoi(PQgetvalue(res, i, 4));
         cdata->region_and_income[i] = (region_id | (income_id << 4));
-        uint8_t is_independent = strstr(PQgetvalue(res, i, 5), "t") ? 1 : 0;
-        uint8_t is_an_aggregate = strstr(PQgetvalue(res, i, 6), "t")  ? 1 : 0;
-        uint8_t in_tui_chart = strstr(PQgetvalue(res, i, 7), "t")  ? 1 : 0;
-        cdata->country_type[i] = is_independent && in_tui_chart
+        uint8_t is_independent      = strstr(PQgetvalue(res, i, 5), "t") ? 1 : 0;
+        uint8_t is_an_aggregate     = strstr(PQgetvalue(res, i, 6), "t")  ? 1 : 0;
+        uint8_t in_tui_chart        = strstr(PQgetvalue(res, i, 7), "t")  ? 1 : 0;
+        cdata->country_type[i]      = is_independent && in_tui_chart
                                     ? 1 : is_independent
                                     ? 2 : is_an_aggregate
                                     ? 4 : in_tui_chart
                                     ? 8 : 16;
     }
+
     cdata->ccount = rows;
     cdata->total_byte_length_of_names = total_byte_length_of_names;
     return;
@@ -360,7 +336,6 @@ callback_datapoint_res_handler(PGresult *res, void *arg)
     struct result_storage_s *dest = (struct result_storage_s *)arg;
     size_t rows = (size_t) PQntuples(res);
     if (dest->data) {
-        printf("processing datapoint\n");
         struct country_data *cdata = (struct country_data *)dest->data;
         size_t ccount = cdata->ccount;
         char (*iso2codes)[3] = cdata->iso2;
@@ -374,7 +349,7 @@ callback_datapoint_res_handler(PGresult *res, void *arg)
         check(dest_name, ERR_MEM, EMISS_ERR);
         dest->name = dest_name;
         size_t j = 0, k = 0, len = 0;
-        for (size_t i = 0; i < rows; i++) {
+        for (size_t i = 0; i < rows; ++i) {
             len = PQgetlength(res, i, 0);
             if (len) {
                 char *country_code = PQgetvalue(res, i, 1);
@@ -394,27 +369,26 @@ callback_datapoint_res_handler(PGresult *res, void *arg)
                 }
             }
         }
-        printf("over the loop\n");
         dest->count = k;
     } else {
         char buffer[0x2000] = {0};
         size_t j = 0, k = 0, count = 0;
         const char *frmt = "%s,";
-        for (size_t i = 0; i < rows; i++) {
+        for (size_t i = 0; i < rows; ++i) {
             size_t len = PQgetlength(res, i, 1);
             if (len) {
                 snprintf(&buffer[j], 0xFFF, frmt, PQgetvalue(res, i, 1));
                 ++count;
-            } else {
+            } else
                 if (rows - i == 1) {
-                    /*  Handle some stupid border cases lest tui.chart crash. */
+                    /*  Handle some border cases lest tui.chart crash. */
                     len = 12;
                     snprintf(&buffer[j], 0xFFF, frmt, "Number(null)");
                 } else {
                     len = 4;
                     snprintf(&buffer[j], 0xFFF, frmt, "null");
                 }
-            }
+
             j += len + 1;
             ++k;
         }
@@ -435,12 +409,12 @@ error:
 static int
 retrieve_country_data(emiss_resource_ctx_st *rsrc_ctx)
 {
-    char *cmd   = SQL_SELECT_COUNTRY_ORDER_BY("Country.code_iso_a3");
-    int ret     = wlpq_query_run_blocking(rsrc_ctx->conn_ctx,
-                            cmd, 0, 0, 0, (wlpq_res_handler_ft *)
-                            callback_countrydata_res_handler,
-                            rsrc_ctx);
-    check(ret, ERR_FAIL, EMISS_ERR, "running a blocking db query");
+    char *cmd = SQL_SELECT_COUNTRY_ORDER_BY("Country.code_iso_a3");
+    int ret   = wlpq_query_run_blocking(rsrc_ctx->conn_ctx,
+                        cmd, 0, 0, 0, (wlpq_res_handler_ft *)
+                        callback_countrydata_res_handler,
+                        rsrc_ctx);
+    check(ret, ERR_FAIL_N, EMISS_ERR, "running a blocking db query: returned", ret);
     check(rsrc_ctx->cdata->name[rsrc_ctx->cdata->ccount - 1], ERR_FAIL, EMISS_ERR,
         "saving data to cdata array");
     return 1;
@@ -457,27 +431,27 @@ frmt_map_chart_data(emiss_template_st *template_data,
     printf("proceeded to format\n");
     /*  Wait for data retrieval to complete. */
     volatile atomic_flag *not_ready = &query_res->in_progress;
-    struct timespec timer;
-    SET_TIMER_S_MS(timer, 0, 5);
+    struct timespec timer = TIMESPEC_INIT_S_MS(0, 5);
     do
         nanosleep(&timer, 0);
     while (atomic_flag_test_and_set(not_ready));
     printf("queries ready\n");
     /*  Allocate space for result string and grab pointers. */
-    size_t count = query_res->count;
-    char *countrydata = calloc((count * strlen(",{code:'XX',data:}")
-                            + count * 0xF),
-                            sizeof(char));
+    size_t count      = query_res->count,
+    countrydata_len   = count * STRLLEN(",{\"code\":\"XX\",\"data\":}") + count * 0xF;
+    char *countrydata = calloc(countrydata_len, sizeof(char));
     check(countrydata, ERR_MEM, EMISS_ERR);
     char **iso2 = (char **)query_res->name;
     char (*data)[0xF] = (char (*)[0xF]) query_res->data;
 
     /*  Format data from iso2 and data to a single JSON array string. */
-    size_t j = 0, data_len = 0;
-    for (size_t i = 0; i < count; i++) {
-        JSON_DATA_ENTRY_BY_CODE(&countrydata[j], iso2[i], data[i], i);
-        j += strlen(&countrydata[j]);
-        data_len += j;
+    size_t j = 0;
+    for (size_t i = 0; i < count; ++i) {
+        int ret = JSON_FRMT_KEY_VALUE_PAIR(&countrydata[j],
+                        countrydata_len - j, "code", "data",
+                        i, iso2[i], data[i]);
+        check(ret >= 0, ERR_FAIL, EMISS_ERR, "printf'ing to buffer");
+        j += ret;
     }
     free(iso2);
     free(data);
@@ -486,19 +460,21 @@ frmt_map_chart_data(emiss_template_st *template_data,
     /*  Call provided output function. */
     const char *js = bdata(template_data->rsrc_ctx->template[1]);
     char title[0x80];
-    snprintf(title, 0x7F, CHOOSE_MAP_CHART_TITLE_FRMT(dataset_id, per_capita), year);
+    int ret = snprintf(title, 0x7F, CHOOSE_MAP_CHART_TITLE_FRMT(dataset_id, per_capita), year);
+    check(ret >= 0, ERR_FAIL, EMISS_ERR, "printf'ing to buffer\n");
     uintmax_t byte_size = template_data->rsrc_ctx->template_frmtless_size[1]
-                            + 3 + data_len + strlen(title);
-    int ret = template_data->output_function(cbdata,
-                200, byte_size, "application/javascript", "close",
-                js, "map", "", countrydata, title, "", "", "");
+                                + STRLLEN("map") + j + ret;
+    ret = template_data->output_function(cbdata, 200,
+                                byte_size, "application/javascript",
+                                "close", js, "map", "", countrydata,
+                                title, "", "", "");
     free(countrydata);
     return ret;
 error:
     return template_data->output_function(cbdata, 500,
-                            sizeof(INTERNAL_ERROR_MSG) - 1,
-                            "text/plain", "close",
-                            "%s", INTERNAL_ERROR_MSG);
+                                STRLLEN(INTERNAL_ERROR_MSG),
+                                "text/plain", "close",
+                                "%s", INTERNAL_ERROR_MSG);
 }
 
 static int
@@ -512,32 +488,28 @@ frmt_line_chart_data(emiss_template_st *template_data, unsigned year_start,
         year_end = EMISS_YEAR_LAST;
     if (year_end < year_start + 1)
         year_end = year_start + 1;
-
     emiss_resource_ctx_st *rsrc_ctx = template_data->rsrc_ctx;
 
     char *yeardata = calloc((1 + year_end - year_start) * 7, sizeof(char));
     check(yeardata, ERR_MEM, EMISS_ERR);
     char *years_formatted = rsrc_ctx->yeardata_formatted;
-    size_t yeardata_len = (1 + year_end - year_start) * 7 - 1;
+    size_t yeardata_len = (1 + year_end - year_start) * (sizeof(",\"0123\"") - 1) - 1;
     memcpy(yeardata, &years_formatted[(year_start - EMISS_YEAR_ZERO) * 7], yeardata_len);
 
     unsigned ndatapoints = (1 + year_end - year_start) * nitems;
-    char *countrydata = calloc((names_bytelen
-                            + nitems * strlen("{name:'',data:[]},")
-                            + ndatapoints * 0x10),
-                            sizeof(char));
+    size_t countrydata_len = nitems * (STRLLEN("{\"name\":\"\",\"data\":[]},") - 1
+                             + ndatapoints * 0x10) + names_bytelen;
+    char *countrydata = calloc(countrydata_len, sizeof(char));
     check(countrydata, ERR_MEM, EMISS_ERR);
-    size_t j = 0, k = 0, data_size = 0;
+    size_t j = 0, k = 0;
     char not_found_msg[0x1000] = {0};
-    strncpy(not_found_msg, DATA_NOT_FOUND_MSG, sizeof(DATA_NOT_FOUND_MSG));
-    struct timespec timer;
-    SET_TIMER_S_MS(timer, 0, 5);
-    for (size_t i = 0; i < nitems; i++) {
+    strncpy(not_found_msg, DATA_NOT_FOUND_MSG, 0xFFF);
+    struct timespec timer = TIMESPEC_INIT_S_MS(0, 5);
+    for (size_t i = 0; i < nitems; ++i) {
         volatile atomic_flag *not_ready = &query_res[i]->in_progress;
         do
             nanosleep(&timer, 0);
         while (atomic_flag_test_and_set(not_ready));
-
         char *name = (char *)query_res[i]->name;
         char *data = (char *)query_res[i]->data;
         if (name && data) {
@@ -550,37 +522,35 @@ frmt_line_chart_data(emiss_template_st *template_data, unsigned year_start,
                 memcpy(&not_found_msg[k], ", ", 2);
                 k += 2;
             } else {
-                JSON_DATA_ENTRY_BY_NAME(&countrydata[j], name, data);
-                j += strlen(&countrydata[j]);
-                data_size += j;
+                int ret = JSON_FRMT_KEY_ARRAY_VALUE_PAIR(&countrydata[j], countrydata_len - j,
+                        "name", "data", i, name, data);
+                check(ret >= 0, ERR_FAIL, EMISS_ERR, "printf'ing to buffer");
+                j += ret;
                 free(data);
             }
 
         }
         free(query_res[i]);
     }
-    /*  Remove trailing comma. */
-    countrydata[j - 1] = '\0';
-    --data_size;
     free(query_res);
     const char *js = bdata(rsrc_ctx->template[1]);
     uintmax_t byte_size = rsrc_ctx->template_frmtless_size[1]
-                            + 4 + data_size + yeardata_len + k +
+                            + STRLLEN("line") + j + yeardata_len + k +
                             + LINE_CHART_PARAMS_LEN(dataset_id, per_capita);
 
     int ret = template_data->output_function(cbdata, 200,
-                byte_size, "application/javascript", "close",
-                js, "line", yeardata, countrydata,
-                LINE_CHART_PARAMS(dataset_id, per_capita),
-                k ? not_found_msg : "");
+                                byte_size, "application/javascript", "close",
+                                js, "line", yeardata, countrydata,
+                                LINE_CHART_PARAMS(dataset_id, per_capita),
+                                k ? not_found_msg : "");
     free(countrydata);
     free(yeardata);
     return ret;
 error:
     return template_data->output_function(cbdata, 500,
-                            sizeof(INTERNAL_ERROR_MSG) - 1,
-                            "text/plain", "close",
-                            "%s", INTERNAL_ERROR_MSG);
+                                STRLLEN(INTERNAL_ERROR_MSG),
+                                "text/plain", "close",
+                                "%s", INTERNAL_ERROR_MSG);
 }
 
 static int
@@ -606,15 +576,15 @@ retrieve_matching_data(emiss_template_st *template_data, unsigned from_year,
         const char *alias = CHOOSE_ALIAS_MAP_CHART(dataset, per_capita);
         ncountries        = rsrc_ctx->cdata->ccount;
         check(SQL_SELECT_WHERE(buf, 0x5FF, out, 0x5FF, col, alias,
-            tbl, where, from_year) <= 0, ERR_FAIL, ERR_MEM,
-            "printf'ing to buffer");
+                tbl, where, from_year) >= 0, ERR_FAIL, ERR_MEM,
+                "printf'ing to buffer");
         struct result_storage_s *res_dest = init_result_storage_s();
         check(res_dest, ERR_FAIL, EMISS_ERR, "initializing result destination buffer");
         res_dest->data            = rsrc_ctx->cdata;
 
         wlpq_query_data_st *qr_dt = wlpq_query_init(out, 0, 0, 0,
-                                        callback_datapoint_res_handler,
-                                        res_dest, 0);
+                                            callback_datapoint_res_handler,
+                                            res_dest, 0);
         check(qr_dt, ERR_FAIL, EMISS_ERR, "initializing query data structure");
 
         ret = wlpq_query_queue_enqueue(rsrc_ctx->conn_ctx, qr_dt);
@@ -637,32 +607,30 @@ retrieve_matching_data(emiss_template_st *template_data, unsigned from_year,
         size_t ccount           = rsrc_ctx->cdata->ccount;
         size_t names_bytelength = 0;
         char *ptr               = country_codes;
-        for (size_t i = 0; i < ncountries; i++) {
+        for (size_t i = 0; i < ncountries; ++i) {
             ptr = strchr(ptr, '=') + 1;
             char code[4] = {0};
             memcpy(code, ptr, 3);
-            check(SQL_SELECT_JOIN_WHERE(buf, 0x5FF, out, 0x5FFF,
-                    out, col, alias, from_tbl, "LEFT", join_tbl,
-                    join_on, where, code, from_year, to_year) <= 0,
+            check(SQL_SELECT_JOIN_WHERE(buf, 0x5FF, out, 0x5FF,
+                    col, alias, from_tbl, "LEFT", join_tbl,
+                    join_on, where, code, from_year, to_year) >= 0,
                     ERR_FAIL, EMISS_ERR, "printf'ing to buffer");
-            res_dest_arr[i] = init_result_storage_s();
-            check(res_dest_arr[i], ERR_FAIL, EMISS_ERR, "initializing result destination buffer");
 
+            res_dest_arr[i] = init_result_storage_s();
+            check(res_dest_arr[i], ERR_FAIL, EMISS_ERR, "initializing result buffer");
             wlpq_query_data_st *qr_dt = wlpq_query_init(out, 0, 0, 0,
                                             callback_datapoint_res_handler,
                                             res_dest_arr[i], 0);
             check(qr_dt, ERR_FAIL, EMISS_ERR, "initializing query data structure");
-
-            ret = wlpq_query_queue_enqueue(rsrc_ctx->conn_ctx, qr_dt);
-            check(ret, ERR_FAIL, EMISS_ERR, "enqueuing query to db");
-
+            check(wlpq_query_queue_enqueue(rsrc_ctx->conn_ctx, qr_dt),
+                    ERR_FAIL, EMISS_ERR, "enqueuing query to db");
+            printf("enqueued query:\n%s\n", out);
             ret = binary_search_str_arr(ccount, 4, iso3codes, code);
             if (ret != -1) {
                 res_dest_arr[i]->name = names[ret];
                 names_bytelength     += strlen(names[ret]);
-            } else {
-                log_warn(ERR_FAIL_A, EMISS_ERR, "finding name for requested code", code);
-            }
+            } else
+                log_warn(ERR_FAIL_A, EMISS_ERR, "finding country name for code", code);
             memset(buf, 0, sizeof(buf));
             memset(out, 0, sizeof(out));
         }
@@ -672,7 +640,7 @@ retrieve_matching_data(emiss_template_st *template_data, unsigned from_year,
     }
 error:
     return template_data->output_function(cbdata, 500,
-                            sizeof(INTERNAL_ERROR_MSG) - 1,
+                            STRLLEN(INTERNAL_ERROR_MSG),
                             "text/plain", "close",
                             "%s", INTERNAL_ERROR_MSG);
 }
@@ -680,7 +648,6 @@ error:
 static int
 forward_to_format(emiss_template_st *template_data, size_t i, const char *qstr, void *cbdata)
 {
-    printf("forward to format\n");
     const uint8_t dataset = strstr(qstr, "co2e") ? DATASET_CO2E : DATASET_POPT;
     const uint8_t per_capita = dataset == DATASET_CO2E && strstr(qstr, "co2e_percapita") ? 1 : 0;
     const char *invalid = "";
@@ -745,8 +712,8 @@ format_chart_html(emiss_template_st *template_data,
     size_t i, const char *qstr, void *cbdata)
 {
     printf("%d\n", (int)strlen(qstr));
-    return template_data->output_function(cbdata,
-                            200, template_data->rsrc_ctx->template_frmtless_size[i] + strlen(qstr),
+    return template_data->output_function(cbdata, 200,
+                            template_data->rsrc_ctx->template_frmtless_size[i] + strlen(qstr),
                             "text/html", "close", bdata(template_data->rsrc_ctx->template[i]),
                             qstr);
 }
@@ -771,7 +738,7 @@ emiss_construct_template_structure(emiss_resource_ctx_st *rsrc_ctx)
     template_data->template_function[1] = forward_to_format;
     return template_data;
 error:
-    return NULL;
+    return 0;
 }
 
 char *
@@ -779,7 +746,7 @@ emiss_get_static_resource(emiss_resource_ctx_st *rsrc_ctx, size_t i)
 {
     if (rsrc_ctx && i < EMISS_NSTATICS)
         return bdata(rsrc_ctx->static_resource[i]);
-    return NULL;
+    return 0;
 }
 
 size_t
@@ -823,14 +790,15 @@ emiss_init_resource_ctx()
     rsrc_ctx->static_resource[3]        = read_to_bstring(EMISS_JS_ROOT"/verge.min.js", 0);
     rsrc_ctx->static_resource_size[3]   = blength(rsrc_ctx->static_resource[3]);
 
+    rsrc_ctx->static_resource[4]        = read_to_bstring(EMISS_HTML_ROOT"/about.html", 0);
+    rsrc_ctx->static_resource_size[3]   = blength(rsrc_ctx->static_resource[4]);
+
     rsrc_ctx->template[0]               = read_to_bstring(EMISS_HTML_ROOT"/show.html",
                                             &nplacehold[0]);
     rsrc_ctx->template_frmtless_size[0] = blength(rsrc_ctx->template[0]) - nplacehold[0] * 2;
     rsrc_ctx->template[1]               = read_to_bstring(EMISS_JS_ROOT"/chart.js", &nplacehold[1]);
     rsrc_ctx->template_frmtless_size[1] = blength(rsrc_ctx->template[1]) - nplacehold[1] * 2;
 
-    wlpq_threads_nconn_set(rsrc_ctx->conn_ctx, 19);
-    wlpq_threads_npoll_set(rsrc_ctx->conn_ctx, 1);
     wlpq_threads_launch_async(rsrc_ctx->conn_ctx);
 
     return rsrc_ctx;
@@ -847,18 +815,18 @@ emiss_free_resource_ctx(emiss_resource_ctx_st *rsrc_ctx)
 
         char **cdata_name = rsrc_ctx->cdata->name;
         unsigned count = rsrc_ctx->cdata->ccount;
-        for (size_t i = 0; i < count; i++)
+        for (size_t i = 0; i < count; ++i)
             if (cdata_name[i])
                 free(cdata_name[i]);
         free(rsrc_ctx->cdata);
-        
+
         bstring *rsrc = rsrc_ctx->static_resource;
-        for (size_t i = 0; i < EMISS_NSTATICS; i++)
+        for (size_t i = 0; i < EMISS_NSTATICS; ++i)
             if (rsrc[i])
                 bdestroy(rsrc[i]);
 
         bstring *template = rsrc_ctx->template;
-        for (size_t i = 0; i < EMISS_NTEMPLATES; i++)
+        for (size_t i = 0; i < EMISS_NTEMPLATES; ++i)
             if (template[i])
                 bdestroy(template[i]);
 

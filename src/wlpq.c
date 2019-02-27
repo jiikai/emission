@@ -10,29 +10,22 @@
 */
 
 #include "wlpq.h"
-#include <math.h>
 #include <stdatomic.h>
 #include <stdbool.h>
 #include <stdlib.h>
-#include <time.h>
 #include <pthread.h>
-#include <sys/select.h>
 #include <sys/poll.h>
-#include <sys/resource.h>
 #include <sys/time.h>
-#include <unistd.h>
 #include "utlist.h"
 #include "dbg.h"
 
 /*
-**  MACRO CONSTANTS
+**  MACROS
 */
 
 /*  Define some shorthands. */
-#define MAX_NQUERT WLPQ_MAX_NQUERY_THREADS
-#define MAX_NPOLLT WLPQ_MAX_NPOLL_THREADS
-#define MAX_NCONN_QUERT WLPQ_MAX_NCONN_PER_QUERY_THREAD
-#define MAX_NCONN_POLLT WLPQ_MAX_NCONN_PER_POLL_THREAD
+#define MAX_NTHRD WLPQ_MAX_NCONNTHREADS
+#define MAX_NCONN_THRD WLPQ_MAX_NCONN_PER_THREAD
 
 /*  Define I/O states for database connections. */
 #define PGCONN_IOSTATE_IDLE 0
@@ -42,13 +35,11 @@
 #define PGCONN_IOSTATE_EXIT 4
 #define PGCONN_IOSTATE_ERROR 0xF
 
-/*
-**  MACRO FUNCTIONS
-*/
+#define PFDS_INIT(fd_val, events_val)\
+    (struct pollfd){.fd = fd_val, .events = events_val}
 
-#define SET_TIMER_S_MS(timer, _s_timer_val, _ms_timer_val)\
-    timer.tv_sec = _s_timer_val;\
-    timer.tv_nsec = (_ms_timer_val * 1000000L)
+#define TIMESPEC_INIT_S_MS(s_val, ms_val)\
+    (struct timespec) {.tv_sec = s_val, .tv_nsec = ms_val * 1000000L}
 
 #define PRINT_STR_ARRAY(stream, arr, len, prepend)\
     fprintf(stream, "%s{", prepend);\
@@ -58,7 +49,7 @@
     fprintf(stream, "%s}\n", arr[len - 1])
 
 /*
-**  STRUCTURES & TYPEDEFS
+**  STRUCTURES & TYPES
 */
 
 /*  Defines a function type for polling PG database connections. */
@@ -88,21 +79,7 @@ struct queue_elem {
     struct queue_elem              *next;
 };
 
-/*  Main context structure declared and typedef'd in header.
-    MEMBERS:
-    - db_url: a connection URL to a Postgres database.
-    - qqueue_head: a pointer to the head of a query queue (singly-linked list).
-    - *_tail: a pointer to the tail of the above queue (necessary for efficient enqueuing).
-    - *_empty: an atomic boolean that evaluates to true iff the above queue is empty.
-    - *_lock: an atomic flag serving as a write-lock on the queue.
-    - thread_continue: an atomic boolean; a false value triggers a clean exit on all child threads.
-    - *_state: 0 (idle) or 1 (busy) for active, 2 (success) or 3 (failure) for exited threads.
-    - *_ids: pthread_t identifiers of all threads.
-        - thread_state and thread_id are 2-dimensional arrays, where
-            a[i][0] == state/id of the ith query thread, and
-            a[i][1..npoll + 1] == state/id of the nth poller thread of the ith query thread.
-    - *_nconn: number of connections per query thread.
-*/
+/*  Main context structure declared and typedef'd in header. */
 struct wlpq_conn_ctx {
     char                           *db_url;
     wlpq_notify_handler_ft         *notify_cb;
@@ -112,10 +89,9 @@ struct wlpq_conn_ctx {
     volatile atomic_bool            qqueue_empty;
     volatile atomic_flag            qqueue_lock;
     volatile atomic_bool            thread_continue;
-    volatile wlpq_thread_state_et   thread_state[MAX_NQUERT][MAX_NPOLLT + 1];
-    pthread_t                       thread_pt_id[MAX_NQUERT][MAX_NPOLLT + 1];
+    volatile wlpq_thread_state_et   thread_state[MAX_NTHRD];
+    pthread_t                       thread_pt_id[MAX_NTHRD];
     unsigned                        thread_nconn;
-    unsigned                        thread_npoll;
 };
 
 /*  Declaration & definition of connection query thread context structure. */
@@ -123,18 +99,9 @@ struct query_thread_ctx {
     wlpq_conn_ctx_st               *conn_ctx;
     PGconn                        **pgconn;
     wlpq_query_data_st            **pgconn_qr_dt;
-    struct pollfd                   pgconn_sockfds[MAX_NCONN_QUERT];
-    volatile atomic_uchar           pgconn_iostate[MAX_NCONN_QUERT];
-    volatile atomic_bool            poller_continue;
+    struct pollfd                   pgconn_sockfds[MAX_NCONN_THRD];
+    volatile uint8_t                pgconn_iostate[MAX_NCONN_THRD];
     unsigned                        nthread;
-};
-
-/*  Declaration & definition of connection poller thread context structure. */
-struct poll_thread_ctx {
-    struct query_thread_ctx        *thrd_ctx;
-    unsigned                        npoller;
-    unsigned                        lo;
-    unsigned                        hi;
 };
 
 /*
@@ -153,22 +120,6 @@ inl_init_thread_attr(pthread_attr_t *attr, int detach_state)
     return 1;
 error:
     return 0;
-}
-
-static inline struct poll_thread_ctx *
-inl_init_poll_thread_ctx(struct query_thread_ctx *thrd_ctx, unsigned npoller)
-{
-    struct poll_thread_ctx *poll_ctx = malloc(sizeof(struct poll_thread_ctx));
-    check(poll_ctx, ERR_MEM, WLPQ);
-    poll_ctx->thrd_ctx = thrd_ctx;
-    poll_ctx->npoller = npoller;
-    unsigned nconn = thrd_ctx->conn_ctx->thread_nconn;
-    unsigned npoll = thrd_ctx->conn_ctx->thread_npoll;
-    poll_ctx->lo = npoller == 1 ? 0 : (nconn / npoll) * npoller - 1;
-    poll_ctx->hi = npoller == npoll ? nconn : poll_ctx->lo + (nconn / npoll);
-    return poll_ctx;
-error:
-    return NULL;
 }
 
 static inline void
@@ -190,21 +141,13 @@ inl_free_query_data(wlpq_query_data_st *data)
 static inline void
 inl_free_query_thread_ctx(struct query_thread_ctx *thrd_ctx)
 {
-    volatile atomic_uchar *pgconn_iostate = thrd_ctx->pgconn_iostate;
+    volatile uint8_t *pgconn_iostate = thrd_ctx->pgconn_iostate;
     unsigned nconn = thrd_ctx->conn_ctx->thread_nconn;
-    struct timespec timer;
-    SET_TIMER_S_MS(timer, 0, 50);
+    struct timespec timer = TIMESPEC_INIT_S_MS(0, 50);
     for (size_t i = 0; i < nconn; i++) {
-        unsigned char iostate = PGCONN_IOSTATE_IDLE;
-        while (!atomic_compare_exchange_weak_explicit(&pgconn_iostate[i],
-                &iostate, PGCONN_IOSTATE_EXIT, memory_order_acq_rel,
-                memory_order_acquire)) {
-            iostate = PGCONN_IOSTATE_ERROR;
-            if (atomic_compare_exchange_weak_explicit(&pgconn_iostate[i],
-                    &iostate, PGCONN_IOSTATE_EXIT, memory_order_acq_rel,
-                    memory_order_acquire))
+        while (pgconn_iostate[i] != PGCONN_IOSTATE_IDLE) {
+            if (pgconn_iostate[i] == PGCONN_IOSTATE_ERROR)
                 break;
-            iostate = PGCONN_IOSTATE_IDLE;
             nanosleep(&timer, NULL);
         }
         if (thrd_ctx->pgconn[i])
@@ -218,8 +161,7 @@ inl_free_query_thread_ctx(struct query_thread_ctx *thrd_ctx)
 static inline PGconn *
 inl_open_noblock_conn_start(char *conn_info)
 {
-    struct timespec timer;
-    SET_TIMER_S_MS(timer, 0, 10);
+    struct timespec timer = TIMESPEC_INIT_S_MS(0, 10);
     while (PQping(conn_info) != PQPING_OK)
         nanosleep(&timer, NULL);
     return PQconnectStart(conn_info);
@@ -308,7 +250,7 @@ static inline void
 inl_flush_noblock_conn(PGconn *conn,
     wlpq_notify_handler_ft notify_cb, void *notify_cb_arg)
 {
-    struct pollfd pfds = (struct pollfd){.fd = PQsocket(conn), .events = 0 ^ POLLIN ^ POLLOUT};
+    struct pollfd pfds = PFDS_INIT(PQsocket(conn), 0 ^ POLLIN ^ POLLOUT);
     int do_flush = 1;
     do {
         int ret = poll(&pfds, 1, 10);
@@ -352,7 +294,8 @@ query_concurrent(PGconn *conn, const char *query_or_stmt, char **param_val,
 
     check(ret, ERR_EXTERN, "libpq", PQerrorMessage(conn));
     /*  Flush queued data to server. If set to blocking, returns when complete. */
-    check(PQflush(conn) != -1, ERR_EXTERN, "libpq", PQerrorMessage(conn));
+    ret = PQflush(conn);
+    check(ret != -1, ERR_EXTERN, "libpq", PQerrorMessage(conn));
     if (blocking) {
         /* Block & wait for the query to return a result. */
         do {
@@ -390,19 +333,15 @@ static void
 queue_enqueue_item(struct queue_elem *item, struct queue_elem **head,
     struct queue_elem **tail, volatile atomic_flag *lock, volatile atomic_bool *empty)
 {
-    struct timespec timer;
-    SET_TIMER_S_MS(timer, 0, 5);
-
-    if (*head != NULL) {
+    struct timespec timer = TIMESPEC_INIT_S_MS(0, 5);
+    while (atomic_flag_test_and_set(lock))
+        nanosleep(&timer, NULL);
+    if (*head != NULL)
         LL_APPEND_ELEM(*head, *tail, item);
-        atomic_store_explicit(empty, false, memory_order_release);
-    } else {
-        while (atomic_flag_test_and_set(lock))
-            nanosleep(&timer, NULL);
+    else
         LL_PREPEND(*head, item);
-        atomic_store_explicit(empty, false, memory_order_release);
-        atomic_flag_clear(lock);
-    }
+    atomic_store_explicit(empty, false, memory_order_release);
+    atomic_flag_clear(lock);
     *tail = item;
 }
 
@@ -410,8 +349,7 @@ static struct queue_elem *
 queue_dequeue_item(struct queue_elem **head, volatile atomic_flag *lock,
     volatile atomic_bool *empty, volatile atomic_bool *thrd_continue)
 {
-    struct timespec timer;
-    SET_TIMER_S_MS(timer, 0, 10);
+    struct timespec timer = TIMESPEC_INIT_S_MS(0, 10);
     do {
         while (atomic_flag_test_and_set(lock)) {
             nanosleep(&timer, NULL);
@@ -446,298 +384,202 @@ queue_dequeue_item(struct queue_elem **head, volatile atomic_flag *lock,
 }
 
 static void *
-poll_thread_cycle(void *arg)
+send_poll_loop(void *arg)
 {
-    /*  Cache some pointers to variables for quicker access. */
-    struct poll_thread_ctx *poll_ctx            = (struct poll_thread_ctx *)arg;
-    struct query_thread_ctx *thrd_ctx           = poll_ctx->thrd_ctx;
-    wlpq_conn_ctx_st *conn_ctx                  = thrd_ctx->conn_ctx;
-    volatile atomic_bool *poll_continue         = &thrd_ctx->poller_continue;
-    unsigned poller_n                           = poll_ctx->npoller;
-    unsigned thread_n                           = thrd_ctx->nthread;
-    volatile wlpq_thread_state_et *poller_state = &conn_ctx->thread_state[thread_n][poller_n];
-    wlpq_query_data_st **qr_dt                  = thrd_ctx->pgconn_qr_dt;
-    struct pollfd *pfds                         = thrd_ctx->pgconn_sockfds;
-    PGconn **conn                               = thrd_ctx->pgconn;
-    volatile atomic_uchar *pgconn_iostate       = thrd_ctx->pgconn_iostate;
-    unsigned nconn                              = conn_ctx->thread_nconn;
-    unsigned lo                                 = poll_ctx->lo;
-    unsigned hi                                 = poll_ctx->hi;
-    wlpq_notify_handler_ft *notify_cb           = conn_ctx->notify_cb;
-    void *notify_cb_arg                         = conn_ctx->notify_cb_arg;
-
-
-    /*  The total error count will be the return value on a join, hence the heap usage. */
-    unsigned *err_total = calloc(1, sizeof(unsigned));
-    check(err_total, ERR_MEM, WLPQ);
-
-    /*  Set an interval for waiting on
-        1) a busy connection, as per PQisbusy();
-        2) an ENOMEM error from poll(). */
-    struct timespec timer_enomem;
-    //SET_TIMER_S_MS(timer_conn, 0, 20);
-    SET_TIMER_S_MS(timer_enomem, 0, 500);
-    *poller_state = IDLE;
-    unsigned topoll = 0;
-    /*  Launch the loop. Exit condition is checked every time poll() times out, e.g.
-        WLPQ_POLL_TIMEOUT_MS milliseconds has elapsed with no events. */
-    while (atomic_load_explicit(poll_continue, memory_order_relaxed) || topoll) {
-        unsigned err_query = 0, err_poll = 0;
-        int ret = 0;
-        if (topoll) {
-            ret = poll(pfds, nconn, WLPQ_POLL_TIMEOUT_MS);
-            while (ret == -1) {
-                ++err_poll;
-                log_err(ERR_FAIL, WLPQ, "polling pending connections");
-                if (errno == ENOMEM)
-                    nanosleep(&timer_enomem, NULL);
-                else if (errno != EINTR)
-                    goto error;
-                ret = poll(pfds, nconn, WLPQ_POLL_TIMEOUT_MS);
-            }
-        }
-        size_t i = lo;
-        if (ret) {
-            *poller_state = BUSY;
-            int j = ret;
-            for (i = lo; i < hi && j; i++) {
-                ret = pfds[i].revents;
-                if (ret & POLLIN) {
-                    --j;
-                    ret = PQconsumeInput(conn[i]);
-                    check(ret, ERR_EXTERN, "libpq", PQerrorMessage(conn[i]));
-                    PGnotify *notify = PQnotifies(conn[i]);
-                    if (notify) {
-                        if (notify_cb)
-                            notify_cb(notify, notify_cb_arg);
-                        PQfreemem(notify);
-                    }
-                    wlpq_res_handler_ft *callback = qr_dt[i]->res_callback;
-                    ExecStatusType desired = callback ? PGRES_TUPLES_OK : PGRES_COMMAND_OK;
-                    PGresult *res = PQgetResult(conn[i]);
-                    while (res) {
-                        if (PQresultStatus(res) != desired) {
-                            ++err_query;
-                            log_err(ERR_EXTERN, "libpq", PQresStatus(PQresultStatus(res)));
-                        } else if (callback)
-                        /*  Pass the result set to a callback if one was provided. */
-                            callback(res, qr_dt[i]->cb_arg);
-                        PQclear(res);
-                        res = PQgetResult(conn[i]);
-                    }
-                    if (err_query) {
-                        log_err(ERR_FAIL_N, WLPQ,
-                            "sending query to database on conn", (int) i);
-                        inl_print_query_data(qr_dt[i], stderr);
-                    }
-                    if (qr_dt[i])
-                        wlpq_query_free(qr_dt[i]);
-                    atomic_store_explicit(&pgconn_iostate[i],
-                            PGCONN_IOSTATE_IDLE, memory_order_release);
-                    pfds[i].events = 0;
-                    --topoll;
-                } else if (ret) {
-                    --j;
-                    ++err_poll;
-                    if (pfds[i].revents & POLLNVAL) {
-                        /*  Invalid file descriptor. Try a reset/renew. */
-                        log_err(ERR_FAIL_N, WLPQ, "invalid file descriptor on conn", (int) i);
-                        log_info("[%s]: Will try to reset/restart conn %d", WLPQ, (int) i);
-                        ret = inl_try_fix_noblock_conn(conn[i], pfds[i].fd,
-                                    PQresetPoll, conn_ctx->db_url);
-                        if (ret == -1) {
-                            log_err(ERR_FAIL_N, WLPQ, "resetting conn", (int) i);
-                            pfds[i].events = 0;
-                            --topoll;
-                        }
-                        /*  Save the new file descriptor. On error,
-                            ret is negative and thus ignored in poll(). */
-                        pfds[i].fd = ret;
-                    }
-                } else if (atomic_load_explicit(&pgconn_iostate[i],
-                        memory_order_consume) == PGCONN_IOSTATE_WAIT) {
-                    pfds[i].events = 0 ^ POLLIN;
-                    ++topoll;
-                }
-            }
-            *err_total += err_query + err_poll;
-        }
-        for (size_t j = i; j < hi; ++j) {
-            if (atomic_load_explicit(&pgconn_iostate[j],
-                    memory_order_consume) == PGCONN_IOSTATE_WAIT) {
-                pfds[j].events = 0 ^ POLLIN;
-                ++topoll;
-            }
-        }
-    }
-    *poller_state = topoll ? BUSY : IDLE;
- error:
-    printf("poller exiting\n");
-    *poller_state = *err_total ? FAIL : SUCC;
-    free(poll_ctx);
-    return err_total;
-}
-
-static void *
-query_thread_cycle(void *arg)
-{
-    /*  Store some stuff in local variables for performance. */
     struct query_thread_ctx *thrd_ctx           = (struct query_thread_ctx *)arg;
     wlpq_conn_ctx_st *conn_ctx                  = thrd_ctx->conn_ctx;
     volatile atomic_bool *qqueue_empty          = &conn_ctx->qqueue_empty;
     volatile atomic_bool *thrd_continue         = &conn_ctx->thread_continue;
-    volatile atomic_uchar *pgconn_iostate       = thrd_ctx->pgconn_iostate;
     volatile atomic_flag *qqueue_lock           = &conn_ctx->qqueue_lock;
-    uint8_t nthread                             = thrd_ctx->nthread;
-    volatile wlpq_thread_state_et *thrd_state   = &conn_ctx->thread_state[nthread][0];
+    volatile wlpq_thread_state_et *thrd_state   = &conn_ctx->thread_state[thrd_ctx->nthread];
     wlpq_query_data_st **pgconn_qr_dt           = thrd_ctx->pgconn_qr_dt;
-    pthread_t (*thrd_ids)[MAX_NPOLLT + 1]       = conn_ctx->thread_pt_id;
+    wlpq_query_data_st **qr_dt                  = thrd_ctx->pgconn_qr_dt;
     PGconn **pgconn                             = thrd_ctx->pgconn;
     struct pollfd *pgconn_sockfds               = thrd_ctx->pgconn_sockfds;
+    volatile uint8_t *pgconn_iostate            = thrd_ctx->pgconn_iostate;
     unsigned nconn                              = conn_ctx->thread_nconn;
-    unsigned npoll                              = conn_ctx->thread_npoll;
-    uint8_t retval                              = FAIL;
-    unsigned conn_id                            = 0;
-    int ret                                     = 0;
+    wlpq_notify_handler_ft *notify_cb           = conn_ctx->notify_cb;
+    void *notify_cb_arg                         = conn_ctx->notify_cb_arg;
+    unsigned topoll = 0, conn_err                   = 0;
 
     /*  Poll connections requested in the master thread, checking they are ready. */
-    unsigned conn_err = 0;
-    for (unsigned i = 0; i < nconn; ++i) {
-        ret = inl_open_noblock_conn_poll(pgconn[i], PQconnectPoll);
-        if (!ret) {
+    for (unsigned i = 0; i < nconn; ++i)
+        if (!inl_open_noblock_conn_poll(pgconn[i], PQconnectPoll)) {
             log_err(ERR_FAIL_N, WLPQ, "opening connection", i);
             ++conn_err;
         }
-    }
     /*  If all connections failed to open, exit. */
-    check(conn_err < nconn, ERR_FAIL, WLPQ, "opening connections: all failed, closing");
+    if (conn_err == nconn) {
+        log_err(ERR_FAIL, WLPQ, "opening connections: all failed, closing");
+        goto EXIT;
+    }
 
-    /*  Set up connection socket file descriptors. */
+    /*  Init connection socket file descriptors. */
     for (size_t i = 0; i < nconn; ++i)
-        pgconn_sockfds[i] = (struct pollfd){.fd = PQsocket(pgconn[i]), .events = 0};
+        pgconn_sockfds[i] = PFDS_INIT(PQsocket(pgconn[i]), 0);
 
-    /*  Initialize and start poller threads. */
-    pthread_attr_t attr;
-    ret = inl_init_thread_attr(&attr, PTHREAD_CREATE_JOINABLE);
-    check(ret, ERR_FAIL, WLPQ, "initializing poller thread attribute object");
-    for (unsigned i = 1; i <= npoll; ++i) {
-        struct poll_thread_ctx *poll_ctx = inl_init_poll_thread_ctx(thrd_ctx, i);
-        check(poll_ctx, ERR_FAIL, WLPQ, "initializing poller thread context structure");
-        check(!pthread_create(&thrd_ids[nthread][i], &attr, poll_thread_cycle, poll_ctx),
-                ERR_FAIL, WLPQ, "creating poller thread");
+    /*  The total error count will be the return value on a join. */
+    unsigned *err_total = calloc(1, sizeof(unsigned));
+    if (!err_total) {
+        log_err(ERR_MEM, WLPQ);
+        goto EXIT;
     }
 
-    /*  Dequeue & send query -loop, continue until both
-            a) the thread_continue boolean in the connection context struct is false; and
-            b) the pending query queue is empty. */
-    while (atomic_load_explicit(thrd_continue, memory_order_acquire)) {
-        *thrd_state = IDLE;
-        struct queue_elem *item = queue_dequeue_item(&conn_ctx->qqueue_head,
-                                    qqueue_lock, qqueue_empty, thrd_continue);
-        /*  Break loop when thrd_continue was set in qqueue_dequeue(). */
-        *thrd_state = BUSY;
-        if (!item)
-            break;
-        /*  Grab an idle connection. */
-        unsigned char iostate = PGCONN_IOSTATE_IDLE;
-        while (!atomic_compare_exchange_weak_explicit(&pgconn_iostate[conn_id],
-                &iostate, PGCONN_IOSTATE_SEND, memory_order_acq_rel, memory_order_acquire)) {
-            iostate = PGCONN_IOSTATE_IDLE;
-            conn_id = conn_id == nconn - 1 ? 0 : conn_id + 1;
+    /*  Set an interval for waiting on
+        1) a busy connection, as per PQisbusy(),
+        2) an ENOMEM error from poll(). */
+    struct timespec timer_enomem = TIMESPEC_INIT_S_MS(0, 500);
+    //struct timespec timer_conn = TIMESPEC_INIT_S_MS(0, 20);
+    bool empty = atomic_load_explicit(qqueue_empty, memory_order_relaxed);
+    /*  Begin main loop. */
+    while (atomic_load_explicit(thrd_continue, memory_order_acquire) || !empty || topoll) {
+        *thrd_state = (topoll || !empty) ? BUSY : IDLE;
+        unsigned err_query = 0, err_poll = 0;
+        int ret = poll(pgconn_sockfds, nconn, WLPQ_POLL_TIMEOUT_MS);
+        while (ret == -1) {
+            ++err_poll;
+            log_err(ERR_FAIL, WLPQ, "polling pending connections");
+            if (errno == ENOMEM)
+                nanosleep(&timer_enomem, NULL);
+            else if (errno != EINTR)
+                goto EXIT;
+            ret = poll(pgconn_sockfds, nconn, WLPQ_POLL_TIMEOUT_MS);
         }
-        wlpq_query_data_st *data = item->data;
-        free(item);
-        pgconn_qr_dt[conn_id] = data;
-
-        if (data->nparams) {
-            struct wlpq_prep_stmt *prep_stmt = data->prep_stmt;
-            ret = query_concurrent(pgconn[conn_id],
-                    prep_stmt->stmt, prep_stmt->param_val,
-                    prep_stmt->param_len, data->nparams,
-                    data->res_callback, data->cb_arg,
-                    conn_ctx->notify_cb, conn_ctx->notify_cb_arg,
-                    data->lock_until_complete);
-        } else
-            ret = query_concurrent(pgconn[conn_id],
-                    data->cmd, NULL, NULL, 0,
-                    data->res_callback, data->cb_arg,
-                    conn_ctx->notify_cb, conn_ctx->notify_cb_arg,
-                    data->lock_until_complete);
-
-        if (data->lock_until_complete) {
-            /*  Query was completed in blocking mode. */
-            atomic_flag_clear_explicit(qqueue_lock, memory_order_release);
-            if (!ret) {
-                log_err(ERR_FAIL_A, WLPQ,
-                    "sending a blocking command",
-                    data->nparams ? data->prep_stmt->stmt : data->cmd);
-                wlpq_query_free(data);
-                atomic_store_explicit(&pgconn_iostate[conn_id],
-                    PGCONN_IOSTATE_ERROR, memory_order_release);
-                goto error;
+        topoll = 0;
+        size_t i = 0;
+        int j = ret; /*  j == the number of poll'd events */
+        for (i = 0; i < nconn; ++i) {
+            ret = pgconn_sockfds[i].revents;
+            if (ret & POLLIN) {
+                --j;
+                ret = PQconsumeInput(pgconn[i]);
+                if (!ret) {
+                    log_err(ERR_EXTERN, "libpq", PQerrorMessage(pgconn[i]));
+                    goto EXIT;
+                }
+                PGnotify *notify = PQnotifies(pgconn[i]);
+                if (notify) {
+                    if (notify_cb)
+                        notify_cb(notify, notify_cb_arg);
+                    PQfreemem(notify);
+                }
+                wlpq_res_handler_ft *callback = qr_dt[i] ? qr_dt[i]->res_callback : 0;
+                PGresult *res = PQgetResult(pgconn[i]);
+                while (res) {
+                    if (PQresultStatus(res)
+                            != (callback ? PGRES_TUPLES_OK : PGRES_COMMAND_OK)) {
+                        ++err_query;
+                        log_err(ERR_EXTERN, "libpq", PQresStatus(PQresultStatus(res)));
+                    } else if (callback) {
+                    /*  Pass the result set to a callback if one was provided. */
+                        callback(res, qr_dt[i]->cb_arg);
+                    }
+                    PQclear(res);
+                    res = PQgetResult(pgconn[i]);
+                }
+                if (err_query) {
+                    log_err(ERR_FAIL_N, WLPQ,
+                        "sending query to database on conn", (int) i);
+                    if (qr_dt[i])
+                        inl_print_query_data(qr_dt[i], stderr);
+                }
+                if (qr_dt[i]) {
+                    wlpq_query_free(qr_dt[i]);
+                    qr_dt[i] = NULL;
+                }
+                pgconn_iostate[i] = PGCONN_IOSTATE_IDLE;
+                pgconn_sockfds[i].events = 0;
+            } else if (ret) {
+                --j;
+                ++err_poll;
+                pgconn_iostate[i] = PGCONN_IOSTATE_ERROR;
+                if (ret & POLLNVAL) {
+                    /*  Invalid file descriptor. Try a reset/renew. */
+                    log_err(ERR_FAIL_N, WLPQ, "invalid file descriptor on conn", (int) i);
+                    log_info("[%s]: Will try to reset/restart conn %d", WLPQ, (int) i);
+                    ret = inl_try_fix_noblock_conn(pgconn[i], pgconn_sockfds[i].fd,
+                                PQresetPoll, conn_ctx->db_url);
+                    if (ret == -1) { /* Didn't work out. */
+                        log_err(ERR_FAIL_N, WLPQ, "resetting conn", (int) i);
+                        pgconn_sockfds[i].events = 0;
+                    } else
+                        pgconn_iostate[i] = PGCONN_IOSTATE_IDLE;
+                    /*  Save a new file descriptor. On error,
+                        ret (from inl_try_fix_noblock_conn()) is negative
+                        and thus ignored in poll(). */
+                    pgconn_sockfds[i].fd = ret;
+                    if (qr_dt[i]) {
+                        log_err(ERR_FAIL_N, WLPQ, "sending query to database on conn", (int) i);
+                        inl_print_query_data(qr_dt[i], stderr);
+                        wlpq_query_free(qr_dt[i]);
+                        qr_dt[i] = NULL;
+                    }
+                }
+            } else if (pgconn_iostate[i] == PGCONN_IOSTATE_WAIT) {
+                pgconn_sockfds[i].events = 0 ^ POLLIN;
+                ++topoll;
             }
-            atomic_store_explicit(&pgconn_iostate[conn_id],
-                PGCONN_IOSTATE_IDLE, memory_order_release);
-            wlpq_query_free(data);
-        } else {
-            if (!ret) {
-                /*  Errors sending a nonblocking query. */
-                log_err(ERR_FAIL, WLPQ, "sending below query to database:");
-                inl_print_query_data(data, stderr);
-                wlpq_query_free(data);
-                atomic_store_explicit(&pgconn_iostate[conn_id],
-                    PGCONN_IOSTATE_ERROR, memory_order_release);
-                goto error;
-            } else
-                /*  Change the I/O state of the connection to WAIT. */
-                atomic_store_explicit(&pgconn_iostate[conn_id],
-                    PGCONN_IOSTATE_WAIT, memory_order_release);
+            if (pgconn_iostate[i] == PGCONN_IOSTATE_IDLE && !empty) {
+
+                struct queue_elem *item = queue_dequeue_item(&conn_ctx->qqueue_head,
+                                            qqueue_lock, qqueue_empty, thrd_continue);
+
+                /*  Break loop when thrd_continue was set in qqueue_dequeue(). */
+                if (!item)
+                    goto EXIT;
+
+                wlpq_query_data_st *data = item->data;
+                free(item);
+                if (data->nparams) {
+                    struct wlpq_prep_stmt *prep_stmt = data->prep_stmt;
+                    ret = query_concurrent(pgconn[i], prep_stmt->stmt,
+                            prep_stmt->param_val, prep_stmt->param_len,
+                            data->nparams, data->res_callback, data->cb_arg,
+                            conn_ctx->notify_cb, conn_ctx->notify_cb_arg,
+                            data->lock_until_complete);
+                } else {
+                    ret = query_concurrent(pgconn[i], data->cmd, 0, 0, 0,
+                            data->res_callback, data->cb_arg, conn_ctx->notify_cb,
+                            conn_ctx->notify_cb_arg, data->lock_until_complete);
+                            printf("sent %s\n", data->cmd);
+                }
+                if (data->lock_until_complete)
+                    atomic_flag_clear_explicit(qqueue_lock, memory_order_release);
+                if (!ret) {
+                    /*  An error occured trying to send the query. */
+                    log_err(ERR_FAIL, WLPQ, "sending below query to database:");
+                    inl_print_query_data(data, stderr);
+                    wlpq_query_free(data);
+                    pgconn_iostate[i] = PGCONN_IOSTATE_ERROR;
+                    goto EXIT;
+                }
+                if (data->lock_until_complete) {
+                    wlpq_query_free(data);
+                    data = NULL;
+                    pgconn_iostate[i] = PGCONN_IOSTATE_IDLE;
+                    pgconn_sockfds[i].events = 0;
+                } else {
+                    pgconn_qr_dt[i] = data;
+                    pgconn_iostate[i] = PGCONN_IOSTATE_WAIT;
+                    pgconn_sockfds[i].events = 0 ^ POLLIN;
+                    ++topoll;
+                }
+            }
+            empty = atomic_load_explicit(qqueue_empty, memory_order_relaxed);
         }
-        conn_id = conn_id == nconn - 1 ? 0 : conn_id + 1;
+        *err_total += err_query + err_poll;
     }
-    /* Set return value for success. */
-    retval = SUCC;
-error:
-    printf("thread exiting\n");
-    /*  Clean up. Return value is zero on error
-    (as was set when this function was entered). */
-    atomic_store_explicit(&thrd_ctx->poller_continue, false, memory_order_relaxed);
-    unsigned poll_err = 0, join_err = 0;
-    for (unsigned i = 1; i <= npoll; i++) {
-        unsigned *poller_retval;
-        ret = pthread_join(thrd_ids[nthread][i], (void **)&poller_retval);
-        if (ret) {
-            join_err++;
-            log_err(ERR_FAIL_N, WLPQ,
-                "joining poller thread", i);
-        }
-        if (thrd_state[i] == FAIL) {
-            poll_err += *poller_retval;
-            thrd_state[i] += *poller_retval;
-            log_err(ERR_FAIL_N, WLPQ,
-                "checking return value from poller thread", i);
-            log_err(ERR_INVAL, WLPQ,
-                "return value (error count > 0)", poll_err);
-        }
-        free(poller_retval);
-    }
-    if (join_err || poll_err) {
-        retval = FAIL;
-        fprintf(stderr,
-            "Join errors: %u; poller thread error return codes: %u\n",
-            join_err, poll_err);
-    }
+EXIT:
+    printf("thread exits\n");
+    *thrd_state = *err_total ? FAIL : SUCC;
     inl_free_query_thread_ctx(thrd_ctx);
-    pthread_attr_destroy(&attr);
-    thrd_state[0] = retval;
-    return NULL;
+    return err_total;
 }
 
 static struct query_thread_ctx *
 init_query_thread_ctx(wlpq_conn_ctx_st *conn_ctx, uint8_t nthread)
 {
-    struct query_thread_ctx *thrd_ctx;
-    thrd_ctx = malloc(sizeof(struct query_thread_ctx));
+    struct query_thread_ctx *thrd_ctx = malloc(sizeof(struct query_thread_ctx));
     check(thrd_ctx, ERR_MEM, WLPQ);
     thrd_ctx->nthread = nthread;
     thrd_ctx->conn_ctx = conn_ctx;
@@ -750,9 +592,8 @@ init_query_thread_ctx(wlpq_conn_ctx_st *conn_ctx, uint8_t nthread)
         thrd_ctx->pgconn[i] = inl_open_noblock_conn_start(conn_ctx->db_url);
         check(thrd_ctx->pgconn[i], ERR_FAIL, WLPQ,
             "sending request for a non-blocking connection");
-        atomic_init(&thrd_ctx->pgconn_iostate[i], PGCONN_IOSTATE_IDLE);
+        thrd_ctx->pgconn_iostate[i] = PGCONN_IOSTATE_IDLE;
     }
-    atomic_init(&thrd_ctx->poller_continue, true);
     return thrd_ctx;
 error:
     return 0;
@@ -761,10 +602,9 @@ error:
 static void *
 threads_launch_async_start(void *arg)
 {
-    int ret = wlpq_threads_launch((wlpq_conn_ctx_st *)arg);
-    if (!ret)
+    if (!wlpq_threads_launch((wlpq_conn_ctx_st *)arg))
         log_err(ERR_FAIL, WLPQ, "launching threads");
-    return NULL;
+    return 0;
 }
 
 /*  FUNCTION PROTOTYPE IMPLEMENTATIONS  */
@@ -815,8 +655,7 @@ wlpq_conn_ctx_init(char *db_url)
     check(conn_info, ERR_MEM, WLPQ);
     memcpy(conn_info, db_url, len);
     conn_ctx->db_url = conn_info;
-    conn_ctx->thread_nconn = MAX_NCONN_QUERT;
-    conn_ctx->thread_npoll = MAX_NPOLLT;
+    conn_ctx->thread_nconn = MAX_NCONN_THRD;
     /* Set up queue lock and initialize head to NULL. */
     atomic_flag_clear_explicit(&conn_ctx->qqueue_lock, memory_order_relaxed);
     atomic_init(&conn_ctx->thread_continue, false);
@@ -920,10 +759,10 @@ wlpq_query_run_blocking(wlpq_conn_ctx_st *ctx, char *stmt_or_cmd,
     else
         res = PQexec(conn, stmt_or_cmd);
 
-    ExecStatusType desired = callback ? PGRES_TUPLES_OK : PGRES_COMMAND_OK;
-    if (PQresultStatus(res) != desired)
+    if (PQresultStatus(res) != (callback ? PGRES_TUPLES_OK : PGRES_COMMAND_OK)) {
         log_err(ERR_EXTERN, "libpq", PQerrorMessage(conn));
-    else if (callback) /*  Pass the result set to a callback if one was provided. */
+        return 0;
+    } else if (callback) /*  Pass the result set to a callback if one was provided. */
         callback(res, cb_arg);
 
     /*  According to libpq documentation, PQgetResult should
@@ -936,7 +775,7 @@ wlpq_query_run_blocking(wlpq_conn_ctx_st *ctx, char *stmt_or_cmd,
     PQfinish(conn);
     return 1;
 error:
-    return 0;
+    return -1;
 }
 
 int
@@ -954,13 +793,14 @@ wlpq_threads_launch(wlpq_conn_ctx_st *conn_ctx)
     /*  Allocate memory for and initialize thread context structs,
         start the threads with the specified attributes and store the
         unique thread identifiers in the connection conn_ctx structure. */
-    for (uint8_t i = 0; i < MAX_NQUERT; i++) {
+    for (uint8_t i = 0; i < MAX_NTHRD; i++) {
         struct query_thread_ctx *thrd_ctx;
         thrd_ctx = init_query_thread_ctx(conn_ctx, i);
         check(thrd_ctx, ERR_FAIL, WLPQ, "creating thread context data");
-        ret = pthread_create(&conn_ctx->thread_pt_id[i][0],
-                &attr, query_thread_cycle, thrd_ctx);
+        ret = pthread_create(&conn_ctx->thread_pt_id[i],
+                &attr, send_poll_loop, thrd_ctx);
     	check(ret == 0, ERR_FAIL, WLPQ, "creating thread");
+        conn_ctx->thread_state[i] = BUSY;
     }
     pthread_attr_destroy(&attr);
     return 1;
@@ -989,15 +829,8 @@ error:
 void
 wlpq_threads_nconn_set(wlpq_conn_ctx_st *conn_ctx, unsigned nconn)
 {
-    if (nconn <= (unsigned) (MAX_NCONN_QUERT))
+    if (nconn <= (unsigned) (MAX_NCONN_THRD))
         conn_ctx->thread_nconn = nconn;
-}
-
-void
-wlpq_threads_npoll_set(wlpq_conn_ctx_st *conn_ctx, unsigned npoll)
-{
-    if (npoll <= conn_ctx->thread_nconn)
-        conn_ctx->thread_npoll = npoll;
 }
 
 int
@@ -1006,16 +839,20 @@ wlpq_threads_stop_and_join(wlpq_conn_ctx_st *conn_ctx)
     check(conn_ctx, ERR_NALLOW, WLPQ, "NULL conn_ctx argument");
     atomic_store(&conn_ctx->thread_continue, false);
     int ret = 0, nerrors = 0;
-    for (uint8_t i = 0; i < 1; i++) {
-        ret = pthread_join(conn_ctx->thread_pt_id[i][0], NULL);
+    for (uint8_t i = 0; i < WLPQ_MAX_NCONNTHREADS; ++i) {
+        void *retval;
+        ret = pthread_join(conn_ctx->thread_pt_id[i], &retval);
         if (ret) {
             ++nerrors;
-            log_err(ERR_FAIL, WLPQ, "joining thread with master");
-        } else if (conn_ctx->thread_state[i][0] == FAIL) {
-            ++nerrors;
-            log_err(ERR_FAIL, WLPQ, "thread return value indicates a failure");
+            log_err(ERR_FAIL_N, WLPQ, "joining thread: pthread_join() returned", ret);
+        } else if (conn_ctx->thread_state[i] == FAIL) {
+            int thrd_errs = (int) *((uint8_t *)retval);
+            log_err(ERR_FAIL_N, WLPQ, "joining thread: FAILURE reported from thread", (int) i);
+            log_err(ERR_FAIL_N, WLPQ, "joining thread: total number of errors was", thrd_errs);
+            nerrors += thrd_errs;
         }
-        conn_ctx->thread_pt_id[i][0] = 0;
+        free(retval);
+        conn_ctx->thread_pt_id[i] = 0;
     }
     return nerrors; /* Return the amount of errors: 0 on success. */
 error:
@@ -1026,11 +863,9 @@ void
 wlpq_threads_wait_until(wlpq_conn_ctx_st *ctx, wlpq_thread_state_et state)
 {
     if (ctx && state != NONE) {
-        struct timespec timer;
-    	SET_TIMER_S_MS(timer, 0, 100);
-    	for (size_t i = 0; i < MAX_NQUERT; ++i)
-            for (size_t j = 0; j < ctx->thread_npoll; ++j)
-                while (ctx->thread_state[i][j] != state)
-        			nanosleep(&timer, NULL);
+        struct timespec timer = TIMESPEC_INIT_S_MS(0, 100);
+    	for (size_t i = 0; i < MAX_NTHRD; ++i)
+            while (ctx->thread_state[i] != state)
+    			nanosleep(&timer, NULL);
     }
 }

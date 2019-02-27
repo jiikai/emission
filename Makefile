@@ -1,6 +1,5 @@
 OS := $(shell uname -s)
 CC := gcc
-EXT := c
 BINDIR := bin
 SRCDIR := src
 LOGDIR := log
@@ -11,13 +10,12 @@ INCLUDE := -I$(PREFIX)/include -I/usr/include/postgresql -Isrc -Iinclude -Iinclu
 LIBINCLUDE := -L$(PREFIX)/lib -L/postgresql
 STD := -std=c11 -pedantic
 STACK := -fstack-protector -Wstack-protector
-# ^^or: -fstack-protector-all (extra protection)
 WARNS := -Wall -Wextra
 DEBUG := -g
-CFLAGS := -pthread -rdynamic $(INCLUDE) $(STD) $(STACK) $(WARNS) $(OPTFLAGS)
-LIBS := -g -ldl -lrt -lpthread -lpq -lcrypto -lpcre -lcurl -lm $(LIBINCLUDE) $(OPTLIBS)
-TESTLIBS := $(LIBS) -lcurl -L/curl
-SRCS := $(wildcard $(SRCDIR)/**/*.c $(SRCDIR)/*.c)
+CFLAGS := -O2 -pthread -rdynamic $(INCLUDE) $(STD) $(STACK) $(WARNS) $(OPTFLAGS)
+LIBS := -ldl -lpthread -lpq -lpcre -lcurl -lm $(LIBINCLUDE) $(OPTLIBS)
+TESTLIBS := $(LIBS)
+SRCS := $(wildcard $(SRCDIR)/dep/*.c $(SRCDIR)/*.c)
 TEST_SRCS= $(wildcard $(TESTDIR)/*_test.c)
 OBJECTS :=$(patsubst %.c,$(LIBDIR)/%.o,$(SRCS))
 TEST_OBJECTS :=$(patsubst %.c,%.o,$(TEST_SRCS))
@@ -31,7 +29,7 @@ TEST_BINS := $(patsubst %.c,%,$(TEST_SRCS))
 default: all
 
 all: $(BINDIR)
-	$(CC) $(CFLAGS) -O2 src/dep/civetweb.c src/dep/zip.c src/dep/bstrlib.c src/dep/libcsv.c src/wlcsv.c src/wlpq.c src/emiss_update.c src/emiss_retrieve.c src/emiss_resource.c src/emiss_server.c src/emiss.c -o $(MAIN_BINS) $(LIBS)
+	$(CC) $(CFLAGS) $(SRCS) -o $(MAIN_BINS) $(LIBS)
 
 $(BINDIR):
 	mkdir $@
@@ -48,7 +46,6 @@ valgrind: $(BINDIR)
 
 
 # Compile tests and run the test binary
-
 tests:
 	$(CC) $(CFLAGS) -I/curl $(DEBUG) $(TEST_SRCS) -o $(TEST_BINS) $(TESTLIBS)
 	@sh ./$(TESTDIR)/runtests.sh

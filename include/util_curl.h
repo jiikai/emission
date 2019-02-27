@@ -1,5 +1,11 @@
-#ifndef _CURLOPTS_H_
-#define _CURLOPTS_H_
+/*! @file       util_curl.h
+    @brief      Convenience macros related to setting options and error handling in libcurl.
+    @author     Joa Käis (github.com/jiikai).
+    @copyright  Public domain.
+*/
+
+#ifndef _util_curl_h
+#define _util_curl_h
 
 #define LCURL "libcurl"
 
@@ -36,4 +42,4 @@
     CURL_ERR_CHK(err_buf, res)
 
 
-#endif
+#endif  /* _util_curl_h */

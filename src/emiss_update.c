@@ -130,7 +130,7 @@ cb_codes_data_header(void *field, size_t len, void *data)
     const char *str                 = (const char *)field;
     const char *substr              = "ISO3166-1-Alpha";
     char *end                       = strstr(str, substr);
-    unsigned col                    = WLCSV_STATE_MEMBER_GET(upd_ctx->lcsv_stt, col);
+    unsigned col                    = WLCSV_STATE_MEMB_GET(upd_ctx->lcsv_stt, col);
     uint8_t *callback_ids           = upd_ctx->callback_ids;
     if (end) {
         if (!callback_ids[1] && strstr(&end[strlen(substr)], "3"))
@@ -154,12 +154,13 @@ cb_codes_data_header(void *field, size_t len, void *data)
 static void
 cb_country(void *field, size_t len, void *data)
 {
-    if (!field && !len)
-        return;
     emiss_update_ctx_st *upd_ctx = (emiss_update_ctx_st *)data;
+    if (!field || !len || WLCSV_STATE_MEMB_GET(upd_ctx->lcsv_stt, row) < 1)
+        return;
+
     char buf[0x1000], out[0x1000];
     char *str = (char *)field, *tmp = upd_ctx->cbdata;
-    unsigned current_col = WLCSV_STATE_MEMBER_GET(upd_ctx->lcsv_stt, col);
+    unsigned current_col = WLCSV_STATE_MEMB_GET(upd_ctx->lcsv_stt, col);
     uint8_t dataset_id = upd_ctx->dataset_id;
     if (dataset_id != DATASET_META) {
         if (dataset_id == DATASET_CO2E) {
@@ -196,7 +197,7 @@ cb_country(void *field, size_t len, void *data)
                     ERR_FAIL, EMISS_ERR, "appending to db job queue");
                 memset(tmp, 0, tmp_len);
                 memcpy(tmp, str, 3);
-                printf("%s\n", query);
+                //printf("%s\n", query);
                 free(query);
             } else {
                 memcpy(tmp, str, len);
@@ -214,14 +215,12 @@ cb_country(void *field, size_t len, void *data)
                 "printf'ing to buffer");
             strcat(tmp, out);
         } else {
-
             check(SQL_APPEND_WITH_SELECT_WHERE(buf, 0xFFF, out, 0xFFF,
                 (tmp + 3), "income_t", "id", "id", "IncomeGroup",
                 "name=$$%s$$", str) >= 0, ERR_FAIL, EMISS_ERR,
                 "printf'ing to buffer");
 
             memcpy(tmp + 3, out, strlen(out));
-
         }
     }
     return;
@@ -233,15 +232,15 @@ error:
 static void
 cb_data(void *field, size_t len, void *data)
 {
-
-    if (!field || !len)
+    emiss_update_ctx_st *upd_ctx = (emiss_update_ctx_st *)data;
+    if ((!field && !len) || WLCSV_STATE_MEMB_GET(upd_ctx->lcsv_stt, row) < 1)
         return;
 
-    emiss_update_ctx_st *upd_ctx = (emiss_update_ctx_st *)data;
     char buf[0x2000], out[0x2000];
-    char *str = (char *)field, *tmp = upd_ctx->cbdata;
+    char *str = field ? (char *)field : "",
+         *tmp = upd_ctx->cbdata;
 
-    unsigned current_col = WLCSV_STATE_MEMBER_GET(upd_ctx->lcsv_stt, col);
+    unsigned current_col = WLCSV_STATE_MEMB_GET(upd_ctx->lcsv_stt, col);
     uint8_t dataset_id = upd_ctx->dataset_id;
 	int year = EMISS_DATA_STARTS_FROM + (current_col - 4);
 	wlpq_query_data_st *query_data;
@@ -304,7 +303,6 @@ cb_data(void *field, size_t len, void *data)
 		char *query = calloc(strlen(out) + 1, sizeof(char));
 		memcpy(query, out, strlen(out));
 		query_data = wlpq_query_init(query, 0, 0, 0, 0, 0, 0);
-        printf("%s\n", query);
         free(query);
     } else
 		return;
@@ -335,7 +333,7 @@ cb_year(void *field, size_t len, void *data)
 		query_data = wlpq_query_init(query, 0, 0, 0, 0, 0, 1);
 		check(query_data, ERR_FAIL, EMISS_ERR, "creating query data struct");
 		check(wlpq_query_queue_enqueue(upd_ctx->conn_ctx, query_data), ERR_FAIL, EMISS_ERR, "appending to db job queue");
-        printf("%s\n", query);
+        //printf("%s\n", query);
         free(query);
     }
     return;
@@ -349,7 +347,7 @@ cb_world_data(void *field, size_t len, void *data)
 {
     emiss_update_ctx_st *upd_ctx = (emiss_update_ctx_st *)data;
 	unsigned year = EMISS_DATA_STARTS_FROM
-                    + (WLCSV_STATE_MEMBER_GET(upd_ctx->lcsv_stt, col)
+                    + (WLCSV_STATE_MEMB_GET(upd_ctx->lcsv_stt, col)
                     - 4);
 	if (year < EMISS_YEAR_ZERO || year > EMISS_YEAR_LAST)
 		return;
@@ -367,13 +365,10 @@ cb_world_data(void *field, size_t len, void *data)
     char *query = calloc(strlen(out) + 1, sizeof(char));
     check(query, ERR_MEM, EMISS_ERR);
     memcpy(query, &out, strlen(out));
-    wlpq_query_data_st *query_data;
-	query_data = wlpq_query_init(query, 0, 0, 0, 0, 0, 0);
+	wlpq_query_data_st *query_data = wlpq_query_init(query, 0, 0, 0, 0, 0, 0);
 	check(query_data, ERR_FAIL, EMISS_ERR, "creating query data struct");
 	check(wlpq_query_queue_enqueue(upd_ctx->conn_ctx, query_data),
         ERR_FAIL, EMISS_ERR, "enqueuing query to thread jobs");
-        printf("%s\n", query);
-        
     free(query);
     return;
 error:
@@ -384,7 +379,7 @@ static void
 cb_world(void *field, size_t len, void *data)
 {
     emiss_update_ctx_st *upd_ctx = (emiss_update_ctx_st *)data;
-    unsigned row = WLCSV_STATE_MEMBER_GET(upd_ctx->lcsv_stt, row);
+    unsigned row = WLCSV_STATE_MEMB_GET(upd_ctx->lcsv_stt, row);
     upd_ctx->callback_ids[4] = wlcsv_callbacks_set(upd_ctx->lcsv_ctx,
                                     ROW, WLCSV_MATCH_NUM(row),
                                     cb_world_data, upd_ctx, 0);
@@ -412,10 +407,12 @@ eor_flush_cbdata_buffer(void *data)
 {
     emiss_update_ctx_st *upd_ctx = (emiss_update_ctx_st *)data;
     wlcsv_ctx_st *wlcsv_ctx = upd_ctx->lcsv_ctx;
-    if (upd_ctx->dataset_id != DATASET_META && !upd_ctx->callback_ids[3] && upd_ctx->cbdata && upd_ctx->cbdata[0] == 'V')
+    if (!upd_ctx->callback_ids[3] && upd_ctx->cbdata && upd_ctx->cbdata[0] == 'V')
         upd_ctx->callback_ids[3] = wlcsv_callbacks_set(wlcsv_ctx,
                                         KEYWORD, WLCSV_MATCH_STR("World"),
                                         cb_world, upd_ctx, 1);
+    else if (upd_ctx->callback_ids[3] && upd_ctx->cbdata && upd_ctx->cbdata[0] == 'V')
+        wlcsv_callbacks_toggle(wlcsv_ctx, upd_ctx->callback_ids[3]);
     memset(upd_ctx->cbdata, 0, strlen(upd_ctx->cbdata));
 }
 
@@ -430,6 +427,10 @@ eor_wait_until_queries_done(void *data)
     upd_ctx->callback_ids[2] = wlcsv_callbacks_set(wlcsv_ctx,
                                     COLUMN, WLCSV_MATCH_NUM(1U),
                                     cb_country, upd_ctx, 0);
+    if (upd_ctx->dataset_id == DATASET_META)
+        upd_ctx->callback_ids[5] = wlcsv_callbacks_set(wlcsv_ctx,
+                                COLUMN, WLCSV_MATCH_NUM(2U),
+                                cb_country, upd_ctx, 0);
     wlcsv_callbacks_eor_set(wlcsv_ctx, eor_flush_cbdata_buffer);
     memset(upd_ctx->cbdata, 0, upd_ctx->cbdata_max_size);
 }
@@ -526,6 +527,7 @@ emiss_parse_and_update(emiss_update_ctx_st *upd_ctx,
     char **paths, uintmax_t *file_sizes, size_t npaths,
     int *dataset_ids, time_t current_version)
 {
+    wlpq_threads_launch_async(upd_ctx->conn_ctx);
     upd_ctx->cbdata_max_size = 0x666;
     upd_ctx->cbdata   = calloc(0x666, sizeof(char));
     check(upd_ctx->cbdata, ERR_MEM, EMISS_ERR);
@@ -554,10 +556,10 @@ emiss_parse_and_update(emiss_update_ctx_st *upd_ctx,
     callback_ids[0] = wlcsv_callbacks_set(wlcsv_ctx,
                             ROW, WLCSV_MATCH_NUM(0U),
                             cb_year, upd_ctx, 0);
-    wlcsv_callbacks_eor_set(wlcsv_ctx, eor_wait_until_queries_done);
     ret = 0;
     size_t retval = 0;
     for (size_t i = 1; i < npaths; i++) {
+        wlcsv_callbacks_eor_set(wlcsv_ctx, eor_wait_until_queries_done);
         wlcsv_callbacks_default_set(wlcsv_ctx, cb_data, upd_ctx);
         ret = wlcsv_file_path(wlcsv_ctx, paths[i], strlen(paths[i]));
         check(ret, ERR_EXTERN, WLCSV, "setting file path");
@@ -580,17 +582,12 @@ emiss_parse_and_update(emiss_update_ctx_st *upd_ctx,
             check(ret, ERR_EXTERN, WLCSV, "reading csv file");
             printf("success\n");
         } else {
-            printf("%s\n", paths[i]);
             printf("commence reading metadata\n");
-            callback_ids[5] = wlcsv_callbacks_set(wlcsv_ctx,
-                                    COLUMN, WLCSV_MATCH_NUM(2U),
-                                    cb_country, upd_ctx, 0);
-            wlcsv_state_lineskip_set(wlcsv_stt, 1);
-            printf("%lu\n", file_sizes[i]);
+            wlcsv_state_lineskip_set(wlcsv_stt, 0);
+            wlcsv_state_options_set(wlcsv_stt, 1);
             ret = wlcsv_file_read(wlcsv_ctx, file_sizes[i]);
             check(ret, ERR_EXTERN, WLCSV, "reading csv file");
             printf("success\n");
-
             wlcsv_callbacks_toggle(wlcsv_ctx, callback_ids[5]);
             callback_ids[5] = 0;
         }
@@ -598,10 +595,13 @@ emiss_parse_and_update(emiss_update_ctx_st *upd_ctx,
             wlcsv_callbacks_toggle(wlcsv_ctx, callback_ids[0]);
             callback_ids[0] = 0;
         }
+        struct timespec timer = (struct timespec){.tv_sec = 1, .tv_nsec = 0};
+        while (!wlpq_query_queue_empty(upd_ctx->conn_ctx)) {
+            nanosleep(&timer, NULL);
+        }
         retval += ret;
     }
-    wlpq_threads_launch_async(upd_ctx->conn_ctx);
-    wlpq_threads_wait_until(upd_ctx->conn_ctx, IDLE);
+    printf("cleaning up\n");
     emiss_free_update_ctx(upd_ctx);
     return retval;
 error:
