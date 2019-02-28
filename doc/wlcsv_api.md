@@ -71,7 +71,7 @@ The header for the embedded `libcsv` source is included locally.
 #define WLCSV_OPTION_IGNORE_EMPTY_FIELDS 1
 ```
 
-- Maximun number of enlisted callbacks to match against, *including* the [default callback](#wlcsv_callbacks_default_set-) but *excluding* the [end-of-row callback](#wlcsv_callbacks_eor_set-).
+- Maximun number of enlisted callbacks to match against, *including* the [default callback](#wlcsv_callbacks_default_set) but *excluding* the [end-of-row callback](#wlcsv_callbacks_eor_set).
 >
     - Change at compile time via passing `DWLCSV_NCALLBACKS_MAX=<integer>` to the compiler.
     - Value - 1 should be divisible by the [number of callback types](#WLCSV_NCALLBACK_MATCH_TYPES).
@@ -111,7 +111,7 @@ An opaque handle for the main context structure.
 typedef struct wlcsv_ctx wlcsv_ctx_st
 ```
 
-__See also:__ [`wlcsv_init()`](#wlcsv_init-)
+__See also:__ [`wlcsv_init()`](#wlcsv_init)
 
 
 #### `wlcsv_state_st`
@@ -135,12 +135,12 @@ typedef struct wlcsv_state {
 |`lineskip`        | The user-set offset in lines from the start of the csv file to ignore.
 |`options`         | A bit mask of currently active wlcsv options.
 
-- Access any of the member fields in a `NULL`-safe manner with the function-like macro expression [`WLCSV_STATE_MEMBER_GET()`](#WLCSV_STATE_MEMBER_GET-).
-- Wrapped in [the main context structure](#wlcsv_state_st), which must be [initialized](#wlcsv_init-) first.
+- Access any of the member fields in a `NULL`-safe manner with the function-like macro expression [`WLCSV_STATE_MEMBER_GET()`](#WLCSV_STATE_MEMBER_GET).
+- Wrapped in [the main context structure](#wlcsv_state_st), which must be [initialized](#wlcsv_init) first.
 - `eor_terminator`, `col`, and `row` are updated by wlcsv during csv parsing. They are intended as read-only values; however, they hold no significance to wlcsv and are not relied upon during any internal operation.
-- `lineskip` and `options`, are intended as modifiable entities and accordingly, [setters as inline functions](#wlcsv_state_lineskip_set-) are provided for them. Seeing as wlcsv_state is a transparent structure, there is of course nothing stopping one from directly manipulating the fields themselves. Use common sense.
+- `lineskip` and `options`, are intended as modifiable entities and accordingly, [setters as inline functions](#wlcsv_state_lineskip_set) are provided for them. Seeing as wlcsv_state is a transparent structure, there is of course nothing stopping one from directly manipulating the fields themselves. Use common sense.
 
-__See also:__ [`wlcsv_state_get()`](#wlcsv_state_get-), [`wlcsv_init()`](#wlcsv_init-)
+__See also:__ [`wlcsv_state_get()`](#wlcsv_state_get), [`wlcsv_init()`](#wlcsv_init)
 
 
 ### Function types
@@ -161,7 +161,7 @@ Callback selection proceeds as follows:
 5. If there are callbacks that are matched against the current column number, check if a column key (unsigned integer) matching the current column numbe exists. If so, select the associated callback function.
 6.  If a default callback has been set, call it and return.
 
-__See also:__ [`wlcsv_callbacks_set`](#wlcsv_callbacks_set-)
+__See also:__ [`wlcsv_callbacks_set`](#wlcsv_callbacks_set)
 
 
 #### `wlcsv_eor_callback_ft`
@@ -172,7 +172,7 @@ A function type for an optional callback invoked as the end of any row is reache
 typedef void wlcsv_eor_callback_ft(void *);
 ```
 
-__See also:__ [`wlcsv_callbacks_eor_set()`](#wlcsv_callbacks_eor_set-)
+__See also:__ [`wlcsv_callbacks_eor_set()`](#wlcsv_callbacks_eor_set)
 
 
 ### Enum & Union types
@@ -187,7 +187,7 @@ typedef enum wlcsv_callback_match_by {
 } wlcsv_callback_match_by_et;
 ```
 
-__See also:__ [`wlcsv_callback_match_to_ut()`](#wlcsv_callback_match_to_ut), [`wlcsv_callback_ft`](#wlcsv_callback_ft), [`wlcsv_callbacks_set()`](#wlcsv_callbacks_set-)
+__See also:__ [`wlcsv_callback_match_to_ut()`](#wlcsv_callback_match_to_ut), [`wlcsv_callback_ft`](#wlcsv_callback_ft), [`wlcsv_callbacks_set()`](#wlcsv_callbacks_set)
 
 #### `wlcsv_callback_match_to_ut`
 
@@ -204,7 +204,7 @@ typedef union {
 |`row_or_col`  | For use with `wlcsv_callback_match_by_et` type `ROW` or `COLUMN`.
 |`key_or_rgx`  | For use with `wlcsv_callback_match_by_et` type `KEYWORD` or `REGEX`.
 
-__See also:__ [`wlcsv_callback_match_by_et()`](#wlcsv_callback_match_by_et), [`wlcsv_callback_ft`](#wlcsv_callback_ft), [`wlcsv_callbacks_set()`](#wlcsv_callbacks_set-)
+__See also:__ [`wlcsv_callback_match_by_et()`](#wlcsv_callback_match_by_et), [`wlcsv_callback_ft`](#wlcsv_callback_ft), [`wlcsv_callbacks_set()`](#wlcsv_callbacks_set)
 
 -------------------------------------------------------------------------------
 
@@ -223,7 +223,7 @@ void wlcsv_free(wlcsv_ctx_st *ctx);
 
 - This function will silently fail if `ctx` is a `NULL` pointer.
 
-__See also:__ [`wlcsv_init()`](#wlcsv_init-)
+__See also:__ [`wlcsv_init()`](#wlcsv_init)
 
 
 #### `wlcsv_init()`
@@ -247,7 +247,7 @@ wlcsv_ctx_st * wlcsv_init(char *ignore_rgx,)
 
 __Returns:__ The initialized struct or `NULL` on error.
 
-__See also:__ [`wlcsv_free()`](#wlcsv_free-)
+__See also:__ [`wlcsv_free()`](#wlcsv_free)
 
 
 #### `wlcsv_file_path()`
@@ -268,7 +268,7 @@ unsigned wlcsv_file_path(wlcsv_ctx_st *ctx, const char *path, size_t len);
 
 __Returns:__ `1` on success or `0` on any error.
 
-__See also:__ [`wlcsv_file_read()`](#wlcsv_file_read-), [`wlcsv_file_preview()`](#wlcsv_file_preview-)
+__See also:__ [`wlcsv_file_read()`](#wlcsv_file_read), [`wlcsv_file_preview()`](#wlcsv_file_preview)
 
 
 #### `wlcsv_file_preview()`
@@ -287,13 +287,13 @@ int wlcsv_preview(wlcsv_ctx_st *ctx,)
 |`buf_size`        | Byte size of the data.
 |`callback`        | A callback function pointer.
 
-- Set the file path first via [`wlcsv_file_path()`](#wlcsv_file_path-).
+- Set the file path first via [`wlcsv_file_path()`](#wlcsv_file_path).
 - Can be used for *e.g.* determining a desired line offset, header field names and other structural features of the csv file.
-- Contrary to callbacks used when processing files with [`wlcsv_file_read()`](wlcsv_file_read-), the function pointed at by `callback` gets called directly by the underlying [`libcsv`]() parser, as such filtering rules provided by this interface have no effect.
+- Contrary to callbacks used when processing files with [`wlcsv_file_read()`](wlcsv_file_read), the function pointed at by `callback` gets called directly by the underlying [`libcsv`](../include/dep/emiss.h) parser, as such filtering rules provided by this interface have no effect.
 
 __Returns:__ `1` if the file was succesfully processed up to `nrows`, `0` on any error.
 
-__See also:__ [`wlcsv_file_path()`](#wlcsv_file_read-), [`wlcsv_file_read()`](#wlcsv_file_preview-)
+__See also:__ [`wlcsv_file_path()`](#wlcsv_file_read), [`wlcsv_file_read()`](#wlcsv_file_preview)
 
 ***
 #### `wlcsv_file_read()`
@@ -308,11 +308,11 @@ int wlcsv_file_read(wlcsv_ctx_st *ctx, size_t buf_size);
 |`ctx`             | A previously initialized instance of the wlcsv context structure.
 |`buf_size`        | Byte size of the data.
 
-- Set the file path first via [`wlcsv_file_path()`](#wlcsv_file_path-).
+- Set the file path first via [`wlcsv_file_path()`](#wlcsv_file_path).
 
 __Returns:__ `1` if the file was succesfully processed, `0` on any error.
 
-__See also:__ [`wlcsv_file_path()`](#wlcsv_file_path-), [`wlcsv_file_preview()`](#wlcsv_file_preview-)
+__See also:__ [`wlcsv_file_path()`](#wlcsv_file_path), [`wlcsv_file_preview()`](#wlcsv_file_preview)
 
 
 #### `wlcsv_callbacks_active()`
@@ -325,10 +325,10 @@ int wlcsv_callbacks_active(wlcsv_ctx_st *ctx, uint8_t id);
 |__Parameter__ |__Description__
 |:-------------|:--------------------------------------------------------------
 |`ctx`         | A previously initialized wlcsv context structure handle.
-|`id`          | ID of the callback, obtained from [`wlcsv_callbacks_set()`](#wlcsv_callbacks_set-).
+|`id`          | ID of the callback, obtained from [`wlcsv_callbacks_set()`](#wlcsv_callbacks_set).
 
 __Returns:__ `1` if active, `0` if not and `-1` if no callback with ID `id` was found or `ctx == NULL`.
-__See also:__ [`wlcsv_callbacks_set()`](#wlcsv_callbacks_set-), [`wlcsv_callbacks_toggle()`](#wlcsv_callbacks_toggle-)
+__See also:__ [`wlcsv_callbacks_set()`](#wlcsv_callbacks_set), [`wlcsv_callbacks_toggle()`](#wlcsv_callbacks_toggle)
 
 
 #### `wlcsv_callbacks_clear()`
@@ -341,10 +341,10 @@ int wlcsv_callbacks_clear(wlcsv_ctx_st *ctx, uint8_t id);
 |__Parameter__ |__Description__
 |:-------------|:--------------------------------------------------------------
 |`ctx`         | A previously initialized wlcsv context structure handle.
-|`id`          | ID of the callback, obtained from [`wlcsv_callbacks_set()`](#wlcsv_callbacks_set-).
+|`id`          | ID of the callback, obtained from [`wlcsv_callbacks_set()`](#wlcsv_callbacks_set).
 
 __Returns:__ `1` on success, `0` on `ctx == NULL` and `-1` if no callback with ID `id` was found.
-__See also:__ [`wlcsv_callbacks_set()`](#wlcsv_callbacks_set-), [`wlcsv_callbacks_clear_all()`](#wlcsv_callbacks_clear_all-)
+__See also:__ [`wlcsv_callbacks_set()`](#wlcsv_callbacks_set), [`wlcsv_callbacks_clear_all()`](#wlcsv_callbacks_clear_all)
 
 
 #### `wlcsv_callbacks_clear_all()`
@@ -361,7 +361,7 @@ void wlcsv_callbacks_clear_all(wlcsv_ctx_st *ctx);
 - Will also delete the default and end-of-row callbacks.
 - Fails silently if `ctx == NULL`.
 
-__See also:__ [`wlcsv_callbacks_clear()`](#wlcsv_callbacks_clear-), [`wlcsv_callbacks_set()`](#wlcsv_callbacks_set-), [`wlcsv_callbacks_default_set()`](#wlcsv_callbacks_default_set-), [`wlcsv_callbacks_eor_set()`](#wlcsv_callbacks_eor_set-),
+__See also:__ [`wlcsv_callbacks_clear()`](#wlcsv_callbacks_clear), [`wlcsv_callbacks_set()`](#wlcsv_callbacks_set), [`wlcsv_callbacks_default_set()`](#wlcsv_callbacks_default_set), [`wlcsv_callbacks_eor_set()`](#wlcsv_callbacks_eor_set),
 
 
 #### `wlcsv_callbacks_set()`
@@ -387,7 +387,7 @@ uint8_t wlcsv_callbacks_set(wlcsv_ctx_st *ctx,
 
 __Returns:__ An id for this callback association on success or `UINT8_MAX` on any error.
 
-__See also:__ [`wlcsv_callbacks_clear()`](#wlcsv_callbacks_clear-), [`wlcsv_callbacks_default_set()`](#wlcsv_callbacks_default_set-), [`wlcsv_callbacks_eor_set()`](#wlcsv_callbacks_eor_set-), [`wlcsv_callbacks_toggle()`](#wlcsv_callbacks_toggle-),
+__See also:__ [`wlcsv_callbacks_clear()`](#wlcsv_callbacks_clear), [`wlcsv_callbacks_default_set()`](#wlcsv_callbacks_default_set), [`wlcsv_callbacks_eor_set()`](#wlcsv_callbacks_eor_set), [`wlcsv_callbacks_toggle()`](#wlcsv_callbacks_toggle),
 
 
 #### `wlcsv_callbacks_default_set()`
@@ -406,7 +406,7 @@ void wlcsv_callbacks_default_set(wlcsv_ctx_st *ctx, wlcsv_callback_ft *callback,
 
 - Fails with a warning if `ctx == NULL`.
 - If `callback == NULL`, no function will be called if no matches exist for the current field.
-- As with other user set callbacks, is ignored by [`wlcsv_file_preview()`](#wlcsv_file_preview-).
+- As with other user set callbacks, is ignored by [`wlcsv_file_preview()`](#wlcsv_file_preview).
 
 
 #### `wlcsv_callbacks_eor_set()`
@@ -423,7 +423,7 @@ void wlcsv_end_of_row_callback_set(wlcsv_ctx_st *ctx, wlcsv_eor_callback_ft *new
 
 - Fails with a warning if `ctx == NULL`.
 - If `new_eor_function == NULL`, no user function will be called by the end of a row.
-- As with other user set callbacks, is ignored by [`wlcsv_file_preview()`](#wlcsv_file_preview-).
+- As with other user set callbacks, is ignored by [`wlcsv_file_preview()`](#wlcsv_file_preview).
 
 
 #### `wlcsv_callbacks_toggle()`
@@ -436,10 +436,10 @@ int wlcsv_callbacks_toggle(wlcsv_ctx_st *ctx, uint8_t id);
 |__Parameter__ |__Description__
 |:-------------|:--------------------------------------------------------------
 |`ctx`         | A previously initialized wlcsv context structure handle.
-|`id`          | ID of the callback, obtained from [`wlcsv_callbacks_set()`](#wlcsv_callbacks_set-).
+|`id`          | ID of the callback, obtained from [`wlcsv_callbacks_set()`](#wlcsv_callbacks_set).
 
 __Returns:__  `1` on success, `0` on `ctx == NULL` and `-1` if no callback with ID `id` was found.
-__See also:__ [`wlcsv_callbacks_active()`](#wlcsv_callbacks_active-), [`wlcsv_callbacks_set()`](#wlcsv_callbacks_set-)
+__See also:__ [`wlcsv_callbacks_active()`](#wlcsv_callbacks_active), [`wlcsv_callbacks_set()`](#wlcsv_callbacks_set)
 
 
 #### `wlcsv_ignore_regex_set()`
@@ -454,11 +454,11 @@ int wlcsv_ignore_regex_set(wlcsv_ctx_st *ctx, char *regex);
 |`ctx`             | A previously initialized wlcsv context structure handle.
 |`regex`           | A regular expression string with PCRE syntax.
 
-- Has no effect in [`wlcsv_preview()`](#wlcsv_preview-).
+- Has no effect in [`wlcsv_preview()`](#wlcsv_preview).
 - If `regex == NULL`, no regex matching will be performed to ignore a field.
 
 __Returns:__  `1` on success, `0` on `ctx == NULL` and `-1` on a regex compile error.
-__See also:__ [`wlcsv_read()`](#wlcsv_read-), [`wlcsv_preview()`](#wlcsv_preview-)
+__See also:__ [`wlcsv_read()`](#wlcsv_read), [`wlcsv_preview()`](#wlcsv_preview)
 
 
 #### `wlcsv_state_get()`
@@ -473,7 +473,7 @@ wlcsv_state_st * wlcsv_state_get(wlcsv_ctx_st *ctx);
 |`ctx`             | A previously initialized wlcsv context structure handle.
 
 __Returns:__  A pointer to the state structure or `NULL` on error.
-__See also:__ [`wlcsv_state_lineskip_set()`](#wlcsv_state_lineskip_set-), [`wlcsv_state_options_set()`](#wlcsv_state_options_set-), [`WLCSV_STATE_MEMB_GET()`](#WLCSV_STATE_MEMB_GET-)
+__See also:__ [`wlcsv_state_lineskip_set()`](#wlcsv_state_lineskip_set), [`wlcsv_state_options_set()`](#wlcsv_state_options_set), [`WLCSV_STATE_MEMB_GET()`](#WLCSV_STATE_MEMB_GET)
 
 
 #### `wlcsv_state_lineskip_set()`
@@ -492,7 +492,7 @@ inline void wlcsv_state_lineskip_set(const wlcsv_state_st *stt, unsigned skip)
 |`stt`             | A pointer to a [wlcsv state structure](#wlcsv_state_st).
 |`skip`            | The number of lines, `0` or greater.
 
-__See also:__ [`wlcsv_state_get()`](#wlcsv_state_get-)
+__See also:__ [`wlcsv_state_get()`](#wlcsv_state_get)
 
 
 #### `wlcsv_state_options_set()`
@@ -513,4 +513,4 @@ inline void wlcsv_state_options_set(const wlcsv_state_st *stt, unsigned options)
 
 - You can bitwise OR different options together when passing them as a parameter.
 
-__See also:__ [`wlcsv_state_get()`](#wlcsv_state_get-)
+__See also:__ [`wlcsv_state_get()`](#wlcsv_state_get)
