@@ -2,15 +2,15 @@
 
 ## Synopsis
 
->`#include "wlpq.h"`
+>__`#include "wlpq.h"`__
 
 > Compile/link with `-lpq`.
 
-This file documents __`wlpq`__, a wrapper around the PostgreSQL C library `libpq`.
+This file documents [`wlpq.h`](../include/wlpq.h), a wrapper around the PostgreSQL C library [`libpq`](https://www.postgresql.org/docs/current/libpq.html).
 
 The intention is to facilitate non-blocking, asynchronous database operation.
 
-It is a component of the [Emission API](emiss_api.md).
+It is a component of the [Emission API](./emiss_api.md).
 
 ### License
 
@@ -107,7 +107,7 @@ An opaque handle to a data structure for a single query.
 typedef struct wlpq_query_data wlpq_query_data_st;
 ```
 
-- Pending database queries are enqueued in a singly linked list ([`utlist.h`](utlist.h)) with a separate tail-pointer housed in the connection context structure. This enables O(1) append, crucial to an efficient queue-implementation, without the need for a doubly-linked list's in this context useless backpointers.
+- Pending database queries are enqueued in a singly linked list (from [`utlist.h`](../include/dep/utlist.h)) with a separate tail-pointer housed in the connection context structure. This enables O(1) append, crucial to an efficient queue-implementation, without the need for a doubly-linked list's in this context useless backpointers.
 
 
 ### Function types
@@ -256,7 +256,7 @@ __Returns:__ `1` if the queue is empty, `0` if not.
 
 #### `wlpq_query_queue_enqueue()`
 
-‪Atomically enqueue a query data object created with [`wlpq_query_init()`]().
+‪Atomically enqueue a query data object created with [`wlpq_query_init()`](#wlpq_query_init).
 
 ```c
 int wlpq_query_queue_enqueue(wlpq_conn_ctx_st *ctx, wlpq_query_data_st *qr_dt);
@@ -280,7 +280,7 @@ int wlpq_query_run_blocking(wlpq_conn_ctx_st *ctx, char *stmt_or_cmd,
     wlpq_res_handler_ft *callback, void *cb_arg);
 ```
 
-- Parameters are identical to those of [wlpq_query_init()]().
+- Parameters are identical to those of [wlpq_query_init()](#wlpq_query_init).
 
 __Returns:__  `1` on success, `0` on error.
 
