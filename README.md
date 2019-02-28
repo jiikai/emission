@@ -2,7 +2,7 @@
 
 ### About
 
-This repository contains the components of Emission, a Heroku app creates charts out of retrieved [Worldbank data](http://api.worldbank.org/v2/en/indicator/).
+This repository contains the components of Emission, a Heroku app that creates charts out of retrieved [Worldbank data](http://api.worldbank.org/v2/en/indicator/). The app is deployed at [https://emission.herokuapp.com].
 
 All of the server-side functionality - including the fetching, parsing, uploading, updating and formatting of Worldbank data - is written in C, while the graphs are produced client-side by the [tui.chart](https://github.com/nhnent/tui.chart) JavaScript library.
 
