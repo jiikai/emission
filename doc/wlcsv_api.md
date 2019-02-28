@@ -5,11 +5,11 @@
 >__`#include "wlcsv.h"`__
 > Compile and link with `-lpcre`.
 
-This file documents __`wlcsv`__, a wrapper around the CSV parser `libcsv`.
+This file documents [`wlcsv.h`](../include/wlcsv.h), a wrapper around the CSV parsing library [`libcsv`](../include/dep/csv.h).
 
 It aims to ease the association of callback functions to column, row, keyword or regex match in any given field of csv formatted data.
 
-It is a component of the [Emission API](emiss_api.md).
+It is a component of the [Emission API](./emiss_api.md).
 
 
 ### License
