@@ -276,7 +276,7 @@ int emiss_retrieve_data();
 ```
 
 __Returns:__ `1` on success or `0` on error.
-__See also:__ [`emiss_should_check_for_update()`](#emiss_should_check_for_update-)
+__See also:__ [`emiss_should_check_for_update()`](#emiss_should_check_for_update)
 
 
 #### `emiss_should_check_for_update()`
@@ -302,7 +302,7 @@ inline int emiss_should_check_for_update()
 a remote source.
 
 __Returns:__ If less than `EMISS_UPDATE_INTERVAL`, `0`, if equal to or greater, `1`, on error, `-1`.
-__See also:__ [`emiss_retrieve_data()`](#emiss_retrieve_data-)
+__See also:__ [`emiss_retrieve_data()`](#emiss_retrieve_data)
 
 
 ### From `emiss_update.c`
@@ -318,7 +318,7 @@ void emiss_update_ctx_free(emiss_update_ctx_st *upd_ctx);;
 |:-----------------|:----------------------------------------------------------
 |`upd_ctx`         | An initialized data update context structure.
 
-__See also:__ [`emiss_update_ctx_init()`](#emiss_update_ctx_init-)
+__See also:__ [`emiss_update_ctx_init()`](#emiss_update_ctx_init)
 
 
 #### `emiss_update_ctx_init()`
@@ -333,7 +333,7 @@ emiss_update_ctx_st * emiss_update_ctx_init(char *tui_chart_worldmap_data_path);
 |`tui_chart_data_path`| [TODO]
 
 __Returns:__ The initialized data update context structure or `NULL` on error.
-__See also:__ [`emiss_update_ctx_free()`](#emiss_update_ctx_free-)
+__See also:__ [`emiss_update_ctx_free()`](#emiss_update_ctx_free)
 
 
 #### `emiss_update_parse_send()`
@@ -355,7 +355,7 @@ size_t emiss_update_parse_send(emiss_update_ctx_st *upd_ctx,
 |`last_update`     | UNIX timestamp of the last time updates were checked for.
 
 __Returns:__ Size in bytes of all parsed data or `-1` on error.
-__See also:__ [`emiss_update_ctx_free()`](#emiss_update_ctx_free-), [`emiss_update_ctx_init()`](#emiss_update_ctx_init-)
+__See also:__ [`emiss_update_ctx_free()`](#emiss_update_ctx_free), [`emiss_update_ctx_init()`](#emiss_update_ctx_init)
 
 
 ### From `emiss_resource.c`
@@ -371,7 +371,7 @@ void emiss_resource_ctx_free(emiss_resource_ctx_st *rsrc_ctx);;
 |:-----------------|:----------------------------------------------------------
 |`rsrc_ctx`         | An initialized resource context structure.
 
-__See also:__ [`emiss_resource_ctx_init()`](#emiss_resource_ctx_init-)
+__See also:__ [`emiss_resource_ctx_init()`](#emiss_resource_ctx_init)
 
 
 #### `emiss_resource_ctx_init()`
@@ -383,7 +383,7 @@ emiss_resource_ctx_st * emiss_resource_ctx_init();
 ```
 
 __Returns:__ The initialized resource context structure or `NULL` on error.
-__See also:__ [`emiss_resource_ctx_free()`](#emiss_resource_ctx_free-)
+__See also:__ [`emiss_resource_ctx_free()`](#emiss_resource_ctx_free)
 
 
 #### `emiss_resource_template_free()`
@@ -401,7 +401,7 @@ inline void emiss_resource_template_free(emiss_template_st *template_data)
 |:-----------------|:----------------------------------------------------------
 |`template_data`   | An initialized document template data structure.
 
-__See also:__ [`emiss_resource_template_init()`](#emiss_resource_template_init-)
+__See also:__ [`emiss_resource_template_init()`](#emiss_resource_template_init)
 
 
 #### `emiss_resource_template_init()`
@@ -413,7 +413,7 @@ emiss_template_st * emiss_resource_template_init(emiss_resource_ctx_st *rsrc_ctx
 ```
 
 __Returns:__ The initialized document template data structure or `NULL` on error.
-__See also:__ [`emiss_resource_template_free()`](#emiss_resource_template_free-)
+__See also:__ [`emiss_resource_template_free()`](#emiss_resource_template_free)
 
 
 #### `emiss_resource_static_get()`
@@ -429,7 +429,7 @@ char * emiss_resource_static_get(emiss_resource_ctx_st *rsrc_ctx, size_t i);
 |`i`               | The index (unsigned integer) of the resource.
 
 __Returns:__ A pointer to the resource as a `char *` or `NULL` on any error.
-__See also:__ [`emiss_resource_ctx_init()`](#emiss_resource_ctx_init-), [`emiss_resource_static_size()`](#emiss_resource_static_size-)
+__See also:__ [`emiss_resource_ctx_init()`](#emiss_resource_ctx_init), [`emiss_resource_static_size()`](#emiss_resource_static_size)
 
 
 #### `emiss_resource_static_size()`
@@ -445,7 +445,7 @@ size_t emiss_resource_static_size(emiss_resource_ctx_st *rsrc_ctx, size_t i);
 |`i`               | The index (unsigned integer) of the resource.
 
 __Returns:__ The byte size as a positive, unsigned integer or `0` on any error.
-__See also:__ [`emiss_resource_ctx_init()`](#emiss_resource_ctx_init-), [`emiss_resource_static_get()`](#emiss_resource_static_get-)
+__See also:__ [`emiss_resource_ctx_init()`](#emiss_resource_ctx_init), [`emiss_resource_static_get()`](#emiss_resource_static_get)
 
 
 ### From `emiss_server.c`
@@ -461,7 +461,7 @@ void emiss_server_ctx_free(emiss_server_ctx_st *server_ctx);;
 |:-----------------|:----------------------------------------------------------
 |`server_ctx`      | An initialized web server context structure.
 
-__See also:__ [`emiss_server_ctx_init()`](#emiss_server_ctx_init-)
+__See also:__ [`emiss_server_ctx_init()`](#emiss_server_ctx_init)
 
 
 #### `emiss_server_ctx_init()`
@@ -473,12 +473,12 @@ emiss_server_ctx_st * emiss_server_ctx_init(emiss_template_st *template_data);
 ```
 |__Parameter__     |__Description__
 |:-----------------|:----------------------------------------------------------
-|`template_data`   | Page template object structure, see  [`emiss_resource_template_init()`](#emiss_resource_template_init-).
+|`template_data`   | Page template object structure, see  [`emiss_resource_template_init()`](#emiss_resource_template_init).
 
 - `template_data` is optional if only static content should be served.
 
 __Returns:__ The initialized server context structure or `NULL` on error.
-__See also:__ [`emiss_server_ctx_free()`](#emiss_server_ctx_free-), [`emiss_server_run()`](#emiss_server_run-)
+__See also:__ [`emiss_server_ctx_free()`](#emiss_server_ctx_free), [`emiss_server_run()`](#emiss_server_run)
 
 
 #### `emiss_server_run()`
@@ -493,4 +493,4 @@ int emiss_server_run(emiss_server_ctx_st *server_ctx);
 |`server_ctx`      | An initialized web server context structure.
 
 __Returns:__ `EXIT_SUCCESS` on a succesful exit or `EXIT_FAILURE` if any errors occured during the run.
-__See also:__ [`emiss_server_ctx_free()`](#emiss_server_ctx_free-), [`emiss_server_ctx_init()`](#emiss_server_ctx_init-)
+__See also:__ [`emiss_server_ctx_free()`](#emiss_server_ctx_free), [`emiss_server_ctx_init()`](#emiss_server_ctx_init)
