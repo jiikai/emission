@@ -6,7 +6,7 @@
 > Compile and link with `-lpcre -lpq` (dependencies of `wlcsv.h` and `ẁlpq.h`)
 
 
-This file documents `emiss.h`, the main header file of the Emission API.
+This file documents [`emiss.h`](../include/emiss.h), the main header file of the [Emission API](../README.md).
 
 See also the documentation for the other components, [`wlcsv.h`](./wlcsv_api.md) and [`wlpq.h`](./wlpq_api.md).
 
