@@ -2,7 +2,7 @@
 
 ### About
 
-This repository contains the components of Emission, a Heroku app that creates charts out of retrieved [Worldbank data](http://api.worldbank.org/v2/en/indicator/). The app is deployed at [https://emission.herokuapp.com].
+This repository contains the components of Emission, a Heroku app that creates charts out of retrieved [Worldbank data](http://api.worldbank.org/v2/en/indicator/). The app is deployed at https://emission.herokuapp.com.
 
 All of the server-side functionality - including the fetching, parsing, uploading, updating and formatting of Worldbank data - is written in C, while the graphs are produced client-side by the [tui.chart](https://github.com/nhnent/tui.chart) JavaScript library.
 
@@ -22,7 +22,7 @@ The following compilation options are provided. You can pass them to `make` as a
 
 No system-wide installation option is currently provided.
 
-### Project C files from `/include` and `/src`
+### Project C files from `include` and `src`
 
 - `emiss.h`: Main project header.
 - `wlcsv.h`: A wrapper around [libcsv](#builtin-c-dependencies), making the association of multiple callbacks per csv parsing instance possible.
@@ -30,7 +30,7 @@ No system-wide installation option is currently provided.
 - `util_json.h/util_sql.h/util_curl.h`: Auxiliary utility macros for formatting JSON, SQL and setting libcurl options, respectively.
 
 
-### Embedded C dependency files from `include/dep/` and `src/dep/`
+### Embedded C dependency files from `include/dep` and `src/dep`
 
 | Header files        | Description                                                                  | Source files   
 |:--------------------|:-----------------------------------------------------------------------------|:--------------------------------------------------------------
@@ -52,7 +52,7 @@ No system-wide installation option is currently provided.
 ### Dependencies for Heroku app
 
 | Project                                                 | Used for                                 | Delivery
-|:---------------------------------------------------------|:-----------------------------------------|:--------------
+|:--------------------------------------------------------|:-----------------------------------------|:--------------
 |[Fontawesome](https://fontawesome.com)                   | Icons                                    |[CDN](https://use.fontawesome.com/releases/v5.6.3/css/all.css)
 |[HTML5 Boilerplate CSS](https://html5boilerplate.com)    | App CSS incorporates some utility classes|[Local, concatenated to project stylesheet](./resources/css/all.min.css)
 |[jQuery Slim](https://jquery.com)                        | The chart paramer input functionality    |[CDN](https://code.jquery.com/jquery-3.3.1.slim.min.js)
