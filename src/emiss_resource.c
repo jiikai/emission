@@ -1,5 +1,7 @@
-/*  @file  emiss_resource.c
-**  @brief Part of the implementation of "emiss.h".
+/*! @file       emiss_resource.c
+    @brief      Part of the implementation of [Emission](../include/emiss.h).
+    @details    See [documentation](../doc/emiss_api.md).
+    @copyright: (c) Joa Käis [github.com/jiikai] 2018-2019, [MIT](../LICENSE).
 */
 
 /*
@@ -23,9 +25,19 @@
 #define COUNTRY_COL_NAMES "code_iso_a3, code_iso_a2, name, region_id, "\
     "income_id, is_independent, is_an_aggregate, in_tui_chart"
 
+#define FRMT_HTML_OPTION_YEAR "<option id=\"f%u\" value=\"%u\">%u</option>\n"
+
+/*  Required size for a buffer holding comma separated years in string format. */
+#define EMISS_SIZEOF_FORMATTED_YEARDATA (EMISS_YEAR_LAST - EMISS_YEAR_ZERO) * 7 + 1
+
 /*
 **  FUNCTION MACROS
 */
+
+/*  Formats a HTML option to a buffer for a datalist with country ids and values. */
+#define FRMT_HTML_OPTION_ID_VALUE(buffer, type, id, value, newline)\
+    sprintf(buffer, "<option class=\"opt-cntr-type-%s\" id=\"%s\" value=\"%s\">%s</option>%s",\
+        type, id, value, value, (newline ? "\n" : ""))
 
 /*  Expands to arguments for a format string specifying the js for producing line charts. */
 

@@ -1,5 +1,7 @@
-/*  @file   emiss.retrieve.c
-    @brief  Part of the implementation of "emiss.h"
+/*! @file       emiss_retrieve.c
+    @brief      Part of the implementation of [Emission](../include/emiss.h).
+    @details    See [documentation](../doc/emiss_api.md).
+    @copyright: (c) Joa Käis [github.com/jiikai] 2018-2019, [MIT](../LICENSE).
 */
 
 /*

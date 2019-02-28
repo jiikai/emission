@@ -1,6 +1,7 @@
-/*
-**  @file  emiss_update.c
-**  @brief Part of emiss.h , parses csv data to sql statements and sends them to db.
+/*! @file       emiss_update.c
+    @brief      Part of the implementation of [Emission](../include/emiss.h).
+    @details    See [documentation](../doc/emiss_api.md).
+    @copyright: (c) Joa Käis [github.com/jiikai] 2018-2019, [MIT](../LICENSE).
 */
 
 /*
@@ -12,8 +13,10 @@
 #include <pthread.h>
 #include "uthash.h"
 #include "util_sql.h"
-#include "wlcsv.h"
 
+/*
+** MACROS
+*/
 
 #define NCALLBACKS 10
 

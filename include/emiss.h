@@ -1,10 +1,12 @@
-#ifndef _emiss_
-#define _emiss_
-
-/*! @file  emiss.h "include/emiss.h"
-    @version 0.1.0
-    @brief An interface to the Emission API.
+/*! @file       emiss.h
+    @version    0.1.2
+    @brief      The main header of the Emission API.
+    @details    See [documentation](../doc/emiss_api.md).
+    @copyright: (c) Joa Käis [github.com/jiikai] 2018-2019, [MIT](../LICENSE).
 */
+
+#ifndef _emiss_h_
+#define _emiss_h_
 
 #define __STDC_WANT_LIB_EXT1__ 1
 #define _POSIX_C_SOURCE 200112L
@@ -29,6 +31,7 @@
 #include "bstrlib.h"
 #include "civetweb.h"
 #include "dbg.h"
+#include "wlcsv.h"
 #include "wlpq.h"
 
 #ifdef _WIN32
@@ -40,18 +43,24 @@
 #endif
 
 /*
-** MACRO CONSTANTS
+** MACROS
 */
 
 /*! Error message provider name. */
 #define EMISS_ERR "EMISSION"
 #define EMISS_MSG EMISS_ERR
+
+/*! Defines the version number of this interface. */
+#define EMISS_VERSION_MAJOR 0
+#define EMISS_VERSION_MINOR 1
+#define EMISS_VERSION_PATCH 2
+
 /*! Remote data update interval, defaults to 1 week. */
 #ifndef EMISS_UPDATE_INTERVAL
     #define EMISS_UPDATE_INTERVAL 604800
 #endif
 
-/*  Data sources. Definable at compile-time, defaults to the below values. */
+/*!  Data sources. Definable at compile-time, defaults to the below values. */
 #ifndef EMISS_WORLDBANK_HOST
     #define EMISS_WORLDBANK_HOST "api.worldbank.org"
     #define EMISS_WORLDBANK_HOST_PROTOCOL "http"
@@ -83,7 +92,7 @@
 /*!  Indicators provided by Worldbank date back to 1960. */
 #define EMISS_DATA_STARTS_FROM 1960
 /*  However, due to limitations of the hobby-dev db in Heroku (10 000 rows),
-     we need to cut some stuff out. */
+    we need to cut some stuff out. */
 #ifndef EMISS_YEAR_ZERO
     #define EMISS_YEAR_ZERO 1980 // TODO EDIT THIS
 #endif
@@ -127,10 +136,12 @@
 #define NCOUNTRY_DATA_SLOTS 300
 
 /*! A PCRE regex to pick out fields that are not to be included as rows in the database. */
-#define EMISS_IGNORE_REGEX\
-    "((Country|Indicator)( Code| Name))"\
-    "|(Population.*|CO2 emissions.*|Region|IncomeGroup|SpecialNotes|WLD|INX|Not classified)"\
-    "|(\\w+\\.\\w+\\.\\w+)"
+#ifndef EMISS_IGNORE_REGEX
+    #define EMISS_IGNORE_REGEX\
+        "((Country|Indicator)( Code| Name))"\
+        "|(Population.*|CO2 emissions.*|Region|IncomeGroup|SpecialNotes|WLD|INX|Not classified)"\
+        "|(\\w+\\.\\w+\\.\\w+)"
+#endif
 
 /*! File path prefixes. *////@{
 #define EMISS_RESOURCE_ROOT "../resources"
@@ -145,8 +156,6 @@
 #define EMISS_NSTATICS 5
 /*! Number of template assets. */
 #define EMISS_NTEMPLATES 2
-/*! Required size for a buffer holding comma separated years in string format. */
-#define EMISS_SIZEOF_FORMATTED_YEARDATA (EMISS_YEAR_LAST - EMISS_YEAR_ZERO) * 7 + 1
 
 /*! All relative URIs available on the server. *////@{
 #define EMISS_URI_INDEX "/"
@@ -158,33 +167,13 @@
 #define EMISS_URI_FONTS "/fonts"
 #define EMISS_FONT_SANS "fira-sans-v8"
 #define EMISS_VALID_FONT_NAMES EMISS_FONT_SANS"-latin-regular"
-
-
 #define EMISS_URI_CHART_JS "/js/chart.js"
 #define EMISS_URI_PARAM_JS "/js/param.js"
 #define EMISS_URI_VERGE_JS "/js/verge.min.js"
 ///@}
 
 /*
-**  FUNCTION MACROS
-*/
-
-
-
-/*  Byte length calculation. */
-#define SIZE_IN_BYTES(object)\
-    ((uintmax_t) sizeof(object) * (sizeof(size_t) / sizeof(uint8_t)))
-
-
-/*  Formats a HTML option to a buffer for a datalist with country ids and values. */
-#define FRMT_HTML_OPTION_ID_VALUE(buffer, type, id, value, newline)\
-    sprintf(buffer, "<option class=\"opt-cntr-type-%s\" id=\"%s\" value=\"%s\">%s</option>%s",\
-        type, id, value, value, (newline ? "\n" : ""))
-
-#define FRMT_HTML_OPTION_YEAR "<option id=\"f%u\" value=\"%u\">%u</option>\n"
-
-/*
-** TYPEDEFS AND STRUCTS
+** TYPES AND STRUCTURES
 */
 
 /*! An opaque handle for the parser and data uploader context struct.
@@ -236,7 +225,7 @@ typedef struct emiss_server_ctx emiss_server_ctx_st;
 ** FUNCTIONS
 */
 
-/*  "emiss_retrieve.c" */
+/*  --> emiss_retrieve.c <-- */
 
 /*! Check the timestamp of last data retrieval.
 
@@ -273,7 +262,7 @@ emiss_retrieve_data();
 void *
 emiss_retrieve_async_start();
 
-/*  "emiss_update.c" */
+/*  --> emiss_update.c <-- */
 
 /*! Allocate and initialize the data parser & updater context structure.
 
@@ -281,7 +270,7 @@ emiss_retrieve_async_start();
 
     @return The initialized data update context structure or NULL on error.
 
-    @see emiss_free_update_ctx()
+    @see emiss_update_ctx_free()
 */
 emiss_update_ctx_st *
 emiss_update_ctx_init(char *tui_chart_worldmap_data_path);
@@ -290,7 +279,7 @@ emiss_update_ctx_init(char *tui_chart_worldmap_data_path);
 
     @param upd_ctx An initialized data update context structure.
 
-    @see emiss_init_update_ctx()
+    @see emiss_update_ctx_init()
 */
 void
 emiss_update_ctx_free(emiss_update_ctx_st *upd_ctx);
@@ -307,62 +296,36 @@ emiss_update_ctx_free(emiss_update_ctx_st *upd_ctx);
     @param npaths       The number of csv files in paths.
     @param dataset_ids  An array of integer codes that can be used to control how the file data is
                         to be interpreted [TODO elaboration]
+    @param last_update  UNIX timestamp of the last time updates were checked for.
 
     @return Size in bytes of all parsed data or -1 on error.
 
-    @see emiss_free_update_ctx(), emiss_init_update_ctx()
+    @see emiss_update_ctx_free(), emiss_update_ctx_init()
 */
 size_t
 emiss_update_parse_send(emiss_update_ctx_st *upd_ctx,
     char **paths, uintmax_t *file_sizes, size_t npaths,
     int *dataset_ids, time_t last_update);
 
-/*  "emiss_resource.c" */
+/*  --> emiss_resource.c <-- */
+
+/*! Deallocator/cleaner for resource context structure.
+
+    @param rsrc_ctx An initialized resource context structure.
+
+    @see emiss_resource_ctx_init()
+*/
+void
+emiss_resource_ctx_free(emiss_resource_ctx_st *rsrc_ctx);
 
 /*! Allocator/initializer for resource context structure.
 
     @return The initialized resource context structure or NULL on error.
 
-    @see emiss_free_resource_ctx()
+    @see emiss_resource_ctx_free()
 */
 emiss_resource_ctx_st *
 emiss_resource_ctx_init();
-
-/*! Deallocator/cleaner for resource context structure.
-
-    @param template_data An initialized resource context structure.
-
-    @see emiss_init_resource_ctx()
-*/
-void
-emiss_resource_ctx_free();
-
-/*!  Allocator/initializer for document template data structure.
-
-    @param rsrc_ctx An initialized resource context structure.
-
-    @return The initialized document template data structure or NULL on error.
-
-    @see emiss_free_template_structure(), emiss_init_resource_ctx(), emiss_free_resource_ctx()
-*/
-emiss_template_st *
-emiss_resource_template_init(emiss_resource_ctx_st *rsrc_ctx);
-
-/*! Deallocator/cleaner or document template data structure.
-
-    Function implemented as inline.
-
-    @param template_data An initialized document template data structure.
-
-    @see emiss_construct_template_structure(), emiss_init_resource_ctx(), emiss_free_resource_ctx()
-*/
-inline void
-emiss_resource_template_free(emiss_template_st *template_data)
-{
-    if (template_data) {
-        free(template_data);
-    }
-}
 
 /*! Return a pointer to a static asset stored in memory.
 
@@ -388,7 +351,42 @@ emiss_resource_static_get(emiss_resource_ctx_st *rsrc_ctx, size_t i);
 size_t
 emiss_resource_static_size(emiss_resource_ctx_st *rsrc_ctx, size_t i);
 
-/*  "emiss_server.c" */
+/*! Deallocator/cleaner or document template data structure.
+
+    Function implemented as inline.
+
+    @param template_data An initialized document template data structure.
+
+    @see emiss_construct_template_structure(), emiss_init_resource_ctx(), emiss_free_resource_ctx()
+*/
+inline void
+emiss_resource_template_free(emiss_template_st *template_data)
+{
+    if (template_data)
+        free(template_data);
+}
+
+/*! Allocator/initializer for document template data structure.
+
+    @param rsrc_ctx An initialized resource context structure.
+
+    @return The initialized document template data structure or NULL on error.
+
+    @see emiss_free_template_structure(), emiss_init_resource_ctx(), emiss_free_resource_ctx()
+*/
+emiss_template_st *
+emiss_resource_template_init(emiss_resource_ctx_st *rsrc_ctx);
+
+/*  --> emiss_server.c <-- */
+
+/*! Deallocator and cleaner for server context structure.
+
+    @param server_ctx An initialized server structure.
+
+    @see emiss_init_server_ctx(), emiss_server_run()
+*/
+void
+emiss_server_ctx_free(emiss_server_ctx_st *server_ctx);
 
 /*! Allocator and initializer for server context structure.
 
@@ -402,14 +400,7 @@ emiss_resource_static_size(emiss_resource_ctx_st *rsrc_ctx, size_t i);
 emiss_server_ctx_st *
 emiss_server_ctx_init(emiss_template_st *template_data);
 
-/*! Deallocator and cleaner for server context structure.
 
-    @param server_ctx An initialized server structure.
-
-    @see emiss_init_server_ctx(), emiss_server_run()
-*/
-void
-emiss_server_ctx_free(emiss_server_ctx_st *server_ctx);
 
 /*! Run server in an event loop until a terminating signal/request is received.
 
@@ -423,4 +414,4 @@ emiss_server_ctx_free(emiss_server_ctx_st *server_ctx);
 int
 emiss_server_run(emiss_server_ctx_st *server_ctx);
 
-#endif /* _emiss_ */
+#endif /* _emiss_h_ */
