@@ -20,6 +20,8 @@ The following compilation options are provided. You can pass them to `make` as a
 |:--------------- |:--------------|:-----------|:-----------
 |`HEROKU`         | undefined     |`emiss.h`   | Switch on Heroku-specific modifications
 
+The application will look for __a [valid](https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-CONNSTRING) Postgres database URL__ in an environment variable (or a config var in Heroku context) __`DATABASE_URL`__.
+
 No system-wide installation option is currently provided.
 
 ### Project C files from `include` and `src`
