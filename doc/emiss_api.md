@@ -1,4 +1,4 @@
-# emiss
+# emiss.h
 
 ## Synopsis
 
