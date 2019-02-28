@@ -2,13 +2,12 @@
 
 int
 main(int argc, const char *argv[]) {
-    int access_time = (int) strtol(getenv("LAST_DATA_ACCESS"), 0, 10);
+    int access_time = 0;
     /*  Check for updates. */
     int ret = emiss_should_check_for_update();
-    if (!ret) {
+    if (!ret)
         log_info("[%s]: Data up to date.", EMISS_MSG);
-        access_time = (int) strtol(getenv("LAST_DATA_ACCESS"), 0, 10);
-    } else {
+    else {
         if (ret == -1)
             log_warn(ERR_FAIL, EMISS_ERR,
                 "retrieving last access time - will try to update");

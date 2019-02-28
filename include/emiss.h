@@ -238,7 +238,8 @@ typedef struct emiss_server_ctx emiss_server_ctx_st;
 inline int
 emiss_should_check_for_update()
 {
-    time_t current_time, last_access_time = (time_t) strtol(getenv("LAST_DATA_ACCESS"), 0, 10);
+    char *time_str = getenv("LAST_DATA_ACCESS");
+    time_t current_time, last_access_time = time_str ? (time_t) strtol(time_str, 0, 10) : 0;
     if (last_access_time == LONG_MAX)
         log_err(ERR_FAIL_A, EMISS_ERR, "converting string to long:", "integer overflow");
 	else if (time(&current_time) == -1)
