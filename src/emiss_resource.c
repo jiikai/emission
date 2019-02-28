@@ -105,16 +105,6 @@
 
 #define STRLLEN(str_lit) (sizeof(str_lit) - 1U)
 
-#define FILL_YEARDATA(str)\
-    do {\
-        unsigned i, j;\
-        j = 0;\
-        for (i = EMISS_YEAR_ZERO; i <= EMISS_YEAR_LAST; ++i) {\
-            sprintf(&str[j], "\"%u\",", i);\
-            j += 7;\
-        }\
-    } while (0)
-
 #define TIMESPEC_INIT_S_MS(s_val, ms_val)\
     (struct timespec) {.tv_sec = s_val, .tv_nsec = ms_val * 1000000L}
 
@@ -185,6 +175,22 @@ struct emiss_resource_ctx {
 */
 
 /*  STATIC  */
+
+static inline int
+fill_yeardata_buffer(char *buf, size_t len)
+{
+    unsigned i = EMISS_YEAR_ZERO, j = 0;
+    int ret = snprintf(buf, len - 1, "\"%u\"", i);
+    check(ret != -1, ERR_FAIL, EMISS_ERR, "printf'ing to buffer");
+    j += ret;
+    for (i += 1; i <= EMISS_YEAR_LAST; ++i) {\
+        j += ret;
+        ret = snprintf(&buf[j], len - 1, ",\"%u\"", i);
+    }
+    return j;
+error:
+    return -1;
+}
 
 static inline char *
 escape_single_quotes(char *buf, char *src)
@@ -281,8 +287,8 @@ frmt_chart_params_js(char *js)
 static inline int
 binary_search_str_arr(int count, size_t el_size, char (*data)[el_size], char *key)
 {
-    int l = 0;
-    int r = count - 1;
+    int l = 0,
+        r = count - 1;
     size_t len = el_size - 1;
     while (l <= r) {
         int m = (int) floor((l + r) / 2);
@@ -302,9 +308,8 @@ callback_countrydata_res_handler(PGresult *res, void *arg)
 {
     emiss_resource_ctx_st *rsrc_ctx = (emiss_resource_ctx_st *)arg;
     struct country_data *cdata = rsrc_ctx->cdata;
-    size_t rows = PQntuples(res);
+    size_t rows = PQntuples(res), total_byte_length_of_names = 0;
     char *field;
-    size_t total_byte_length_of_names = 0;
     for (size_t i = 0; i < rows; ++i) {
         field = PQgetvalue(res, i, 0);
         if (strlen(field) == 3)
@@ -322,12 +327,12 @@ callback_countrydata_res_handler(PGresult *res, void *arg)
             memcpy(cdata->name[i], field, len);
         }
 
-        uint8_t region_id           = (uint8_t) atoi(PQgetvalue(res, i, 3));
-        uint8_t income_id           = (uint8_t) atoi(PQgetvalue(res, i, 4));
+        uint8_t region_id           = (uint8_t) atoi(PQgetvalue(res, i, 3)),
+                income_id           = (uint8_t) atoi(PQgetvalue(res, i, 4));
         cdata->region_and_income[i] = (region_id | (income_id << 4));
-        uint8_t is_independent      = strstr(PQgetvalue(res, i, 5), "t") ? 1 : 0;
-        uint8_t is_an_aggregate     = strstr(PQgetvalue(res, i, 6), "t")  ? 1 : 0;
-        uint8_t in_tui_chart        = strstr(PQgetvalue(res, i, 7), "t")  ? 1 : 0;
+        uint8_t is_independent      = strstr(PQgetvalue(res, i, 5), "t") ? 1 : 0,
+                is_an_aggregate     = strstr(PQgetvalue(res, i, 6), "t")  ? 1 : 0,
+                in_tui_chart        = strstr(PQgetvalue(res, i, 7), "t")  ? 1 : 0;
         cdata->country_type[i]      = is_independent && in_tui_chart
                                     ? 1 : is_independent
                                     ? 2 : is_an_aggregate
@@ -569,10 +574,10 @@ retrieve_matching_data(emiss_template_st *template_data, unsigned from_year,
     size_t ncountries, void *cbdata)
 {
     emiss_resource_ctx_st *rsrc_ctx = template_data->rsrc_ctx;
-    char buf[0x600] = {0};
-    char out[0x600] = {0};
-    uint8_t map_chart = from_year == to_year ? 1 : 0;
-    const char *where = CHOOSE_WHERE_CLAUSE(from_year, to_year);
+    char    buf[0x600] = {0};
+    char    out[0x600] = {0};
+    uint8_t map_chart  = from_year == to_year ? 1 : 0;
+    const char *where  = CHOOSE_WHERE_CLAUSE(from_year, to_year);
 
     /*  Enqueue non-blocking queries for the data values. Results will be
         parsed by a callback to a buffer struct, the address of which is passed
@@ -580,42 +585,45 @@ retrieve_matching_data(emiss_template_st *template_data, unsigned from_year,
     int ret;
     char (*iso3codes)[4] = rsrc_ctx->cdata->iso3;
     if (map_chart) {
-        const char *tbl   = "Datapoint";
-        const char *col   = CHOOSE_COL_MAP_CHART(dataset, per_capita);
-        const char *alias = CHOOSE_ALIAS_MAP_CHART(dataset, per_capita);
-        ncountries        = rsrc_ctx->cdata->ccount;
+        const char  *tbl   = "Datapoint",
+                    *col   = CHOOSE_COL_MAP_CHART(dataset, per_capita),
+                    *alias = CHOOSE_ALIAS_MAP_CHART(dataset, per_capita);
+
+        ncountries = rsrc_ctx->cdata->ccount;
         check(SQL_SELECT_WHERE(buf, 0x5FF, out, 0x5FF, col, alias,
                 tbl, where, from_year) >= 0, ERR_FAIL, ERR_MEM,
                 "printf'ing to buffer");
+
         struct result_storage_s *res_dest = init_result_storage_s();
         check(res_dest, ERR_FAIL, EMISS_ERR, "initializing result destination buffer");
-        res_dest->data            = rsrc_ctx->cdata;
+        res_dest->data = rsrc_ctx->cdata;
 
         wlpq_query_data_st *qr_dt = wlpq_query_init(out, 0, 0, 0,
                                             callback_datapoint_res_handler,
                                             res_dest, 0);
         check(qr_dt, ERR_FAIL, EMISS_ERR, "initializing query data structure");
-
-        ret = wlpq_query_queue_enqueue(rsrc_ctx->conn_ctx, qr_dt);
-        check(ret, ERR_FAIL, EMISS_ERR, "enqueuing query to db");
+        check(wlpq_query_queue_enqueue(rsrc_ctx->conn_ctx, qr_dt),
+                ERR_FAIL, EMISS_ERR, "enqueuing query to db");
 
         return frmt_map_chart_data(template_data, res_dest, ncountries,
                     dataset, per_capita, from_year, cbdata);
     } else {
-
-        const char *col         = CHOOSE_COL_LINE_CHART(dataset, per_capita);
-        const char *alias       = CHOOSE_ALIAS_LINE_CHART(dataset, per_capita);
-        const char *from_tbl    = "Yeardata";
-        const char *join_tbl    = "Datapoint";
-        const char *join_on     = "Yeardata.year=Datapoint.yeardata_year "\
+        const char  *col          = CHOOSE_COL_LINE_CHART(dataset, per_capita),
+                    *alias        = CHOOSE_ALIAS_LINE_CHART(dataset, per_capita),
+                    *from_tbl     = "Yeardata",
+                    *join_tbl     = "Datapoint",
+                    *join_on      = "Yeardata.year=Datapoint.yeardata_year "\
                                     "AND Datapoint.country_code='%s'";
+
         struct result_storage_s **res_dest_arr;
-        res_dest_arr            = malloc(sizeof(struct result_storage_s *) * ncountries);
+        res_dest_arr  = malloc(sizeof(struct result_storage_s *) * ncountries);
         check(res_dest_arr, ERR_MEM, EMISS_ERR);
-        char **names            = rsrc_ctx->cdata->name;
-        size_t ccount           = rsrc_ctx->cdata->ccount;
-        size_t names_bytelength = 0;
-        char *ptr               = country_codes;
+
+        char  **names             = rsrc_ctx->cdata->name;
+        size_t  ccount            = rsrc_ctx->cdata->ccount,
+                names_bytelength  = 0;
+        char *ptr                 = country_codes;
+
         for (size_t i = 0; i < ncountries; ++i) {
             ptr = strchr(ptr, '=') + 1;
             char code[4] = {0};
@@ -686,12 +694,11 @@ forward_to_format(emiss_template_st *template_data, size_t i, const char *qstr, 
                     count = strtoul(strchr(count_str, '=') + 1, 0, 10);
                     if (!count || count == ULONG_MAX)
                         invalid = "count";
-                    else {
+                    else
                         return retrieve_matching_data(template_data,
                                 from_year, to_year, dataset,
                                 per_capita, strstr(count_str, "ccode"),
                                 count, cbdata);
-                    }
                 }
             }
         }
@@ -775,10 +782,11 @@ emiss_resource_ctx_init()
     wlpq_threads_launch_async(rsrc_ctx->conn_ctx);
     rsrc_ctx->cdata = calloc(1, sizeof(struct country_data));
     check(rsrc_ctx->cdata, ERR_MEM, EMISS_ERR);
-    int ret = retrieve_country_data(rsrc_ctx);
-    check(ret, ERR_FAIL, EMISS_ERR, "initializing resources: unable to retrieve country data");
+    check(retrieve_country_data(rsrc_ctx), ERR_FAIL, EMISS_ERR,
+            "initializing resources: unable to retrieve country data");
 
-    FILL_YEARDATA(rsrc_ctx->yeardata_formatted);
+    int ret = fill_yeardata_buffer(rsrc_ctx->yeardata_formatted, EMISS_SIZEOF_FORMATTED_YEARDATA);
+    check(ret, ERR_FAIL, EMISS_ERR, "initializing resources: failed formatting year data");
 
     size_t nplacehold[EMISS_NTEMPLATES] = {0};
     rsrc_ctx->static_resource[0]        = read_to_bstring(EMISS_HTML_ROOT"/index.html", 0);
@@ -806,11 +814,9 @@ emiss_resource_ctx_init()
     rsrc_ctx->template[1]               = read_to_bstring(EMISS_JS_ROOT"/chart.js", &nplacehold[1]);
     rsrc_ctx->template_frmtless_size[1] = blength(rsrc_ctx->template[1]) - nplacehold[1] * 2;
 
-
-
     return rsrc_ctx;
 error:
-    return NULL;
+    return 0;
 }
 
 void

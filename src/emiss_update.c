@@ -62,8 +62,8 @@ struct emiss_update_ctx {
 static inline int
 binary_search_str_arr(int count, size_t el_size, char (*data)[el_size], char *key)
 {
-    int l = 0;
-    int r = count - 1;
+    int l = 0,
+        r = count - 1;
     size_t len = el_size - 1;
     while (l <= r) {
         int m = (int) floor((l + r) / 2);
@@ -131,8 +131,8 @@ static void
 cb_codes_data_header(void *field, size_t len, void *data)
 {
     emiss_update_ctx_st *upd_ctx    = (emiss_update_ctx_st *)data;
-    const char *str                 = (const char *)field;
-    const char *substr              = "ISO3166-1-Alpha";
+    const char  *str                = (const char *)field,
+                *substr             = "ISO3166-1-Alpha";
     char *end                       = strstr(str, substr);
     unsigned col                    = WLCSV_STATE_MEMB_GET(upd_ctx->lcsv_stt, col);
     uint8_t *callback_ids           = upd_ctx->callback_ids;
@@ -177,8 +177,8 @@ cb_country(void *field, size_t len, void *data)
                     cols = "code_iso_a3, code_iso_a2, name, is_independent, in_tui_chart";
                     vals = "'%s', '%s', $$%s$$, %s, %s";
                     char *iso2 = ccode_entry->iso2;
-                    const char *independent = ccode_entry->is_independent ? "TRUE" : "FALSE";
-                    const char *in_tuichart = ccode_entry->in_tui_chart ? "TRUE" : "FALSE";
+                    const char  *independent = ccode_entry->is_independent ? "TRUE" : "FALSE",
+                                *in_tuichart = ccode_entry->in_tui_chart ? "TRUE" : "FALSE";
 
                     check(SQL_INSERT_INTO(buf, 0xFFF, out, 0xFFF, "Country",
                         cols, vals, str, iso2, tmp, independent,
@@ -191,17 +191,12 @@ cb_country(void *field, size_t len, void *data)
                     cols, vals, str, tmp) >= 0, ERR_FAIL, EMISS_ERR,
                     "printf'ing to buffer");
                 }
-                char *query = calloc(strlen(out) + 1, sizeof(char));
-                check(query, ERR_MEM, EMISS_ERR);
-                memcpy(query, &out, strlen(out));
-				wlpq_query_data_st *query_data;
-				query_data = wlpq_query_init(query, 0, 0, 0, 0, 0, 1);
+				wlpq_query_data_st *query_data = wlpq_query_init(out, 0, 0, 0, 0, 0, 1);
 				check(query_data, ERR_FAIL, EMISS_ERR, "creating query struct");
 				check(wlpq_query_queue_enqueue(upd_ctx->conn_ctx, query_data),
                     ERR_FAIL, EMISS_ERR, "appending to db job queue");
                 memset(tmp, 0, tmp_len);
                 memcpy(tmp, str, 3);
-                free(query);
             } else {
                 memcpy(tmp, str, len);
             }
@@ -273,10 +268,7 @@ cb_data(void *field, size_t len, void *data)
             memset(tmp, 0, tmp_len);
         } else
             return;
-		char *query = calloc(strlen(out) + 1, sizeof(char));
-		memcpy(query, out, strlen(out));
-		query_data = wlpq_query_init(query, 0, 0, 0, 0, 0, 0);
-        free(query);
+		query_data = wlpq_query_init(out, 0, 0, 0, 0, 0, 0);
     } else if (year >= EMISS_YEAR_ZERO && year <= EMISS_YEAR_LAST) {
         const char *table = "Datapoint",
                    *cols = "country_code, yeardata_year, %s",
@@ -302,10 +294,7 @@ cb_data(void *field, size_t len, void *data)
                 arbiter, set, str) >= 0, ERR_FAIL, EMISS_ERR,
                 "printf'ing to buffer");
         }
-		char *query = calloc(strlen(out) + 1, sizeof(char));
-		memcpy(query, out, strlen(out));
-		query_data = wlpq_query_init(query, 0, 0, 0, 0, 0, 0);
-        free(query);
+		query_data = wlpq_query_init(out, 0, 0, 0, 0, 0, 0);
     } else
 		return;
 
@@ -314,7 +303,6 @@ cb_data(void *field, size_t len, void *data)
     return;
 
 error:
-// ADD CLEANUP ROUTINES
     exit(0);
 }
 
@@ -328,18 +316,12 @@ cb_year(void *field, size_t len, void *data)
         char buf[0x100], out[0x100];
         check(SQL_INSERT_INTO(buf, 0xFF, out, 0xFF, "YearData", "year", "%s", str) >= 0,
             ERR_FAIL, EMISS_ERR, "printf'ing to output");
-        char *query = calloc(strlen(out) + 1, sizeof(char));
-        check(query, ERR_MEM, EMISS_ERR);
-        memcpy(query, &out, strlen(out));
-        wlpq_query_data_st *query_data;
-		query_data = wlpq_query_init(query, 0, 0, 0, 0, 0, 1);
+		wlpq_query_data_st *query_data = wlpq_query_init(out, 0, 0, 0, 0, 0, 1);
 		check(query_data, ERR_FAIL, EMISS_ERR, "creating query data struct");
 		check(wlpq_query_queue_enqueue(upd_ctx->conn_ctx, query_data), ERR_FAIL, EMISS_ERR, "appending to db job queue");
-        free(query);
     }
     return;
 error:
-// ADD CLEANUP ROUTINES
     exit(0);
 }
 
@@ -363,14 +345,10 @@ cb_world_data(void *field, size_t len, void *data)
     check(SQL_UPDATE_WHERE(buf, 0xFFF, out, 0xFFF,
         "YearData", set, where, str, year) >= 0,
         ERR_FAIL, EMISS_ERR, "printf'ing to output");
-    char *query = calloc(strlen(out) + 1, sizeof(char));
-    check(query, ERR_MEM, EMISS_ERR);
-    memcpy(query, &out, strlen(out));
-	wlpq_query_data_st *query_data = wlpq_query_init(query, 0, 0, 0, 0, 0, 0);
+	wlpq_query_data_st *query_data = wlpq_query_init(out, 0, 0, 0, 0, 0, 0);
 	check(query_data, ERR_FAIL, EMISS_ERR, "creating query data struct");
 	check(wlpq_query_queue_enqueue(upd_ctx->conn_ctx, query_data),
         ERR_FAIL, EMISS_ERR, "enqueuing query to thread jobs");
-    free(query);
     return;
 error:
     exit(0);
@@ -394,9 +372,9 @@ cb_preview(void *field, size_t len, void *data)
         emiss_update_ctx_st *upd_ctx = (emiss_update_ctx_st *)data;
         char *str = (char *)field;
         char *tmp = upd_ctx->cbdata;
-        if (strstr(str, "Last Updated")) {
+        if (strstr(str, "Last Updated"))
             memcpy(tmp, str, strlen(str));
-        } else if (tmp && strstr(tmp, "Last Updated")) {
+        else if (tmp && strstr(tmp, "Last Updated")) {
             memset(tmp, 0, strlen(tmp));
             memcpy(tmp, str, strlen(str));
         }
