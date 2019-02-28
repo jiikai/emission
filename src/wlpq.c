@@ -537,12 +537,10 @@ send_poll_loop(void *arg)
                             data->nparams, data->res_callback, data->cb_arg,
                             conn_ctx->notify_cb, conn_ctx->notify_cb_arg,
                             data->lock_until_complete);
-                } else {
+                } else
                     ret = query_concurrent(pgconn[i], data->cmd, 0, 0, 0,
                             data->res_callback, data->cb_arg, conn_ctx->notify_cb,
                             conn_ctx->notify_cb_arg, data->lock_until_complete);
-                            printf("sent %s\n", data->cmd);
-                }
                 if (data->lock_until_complete)
                     atomic_flag_clear_explicit(qqueue_lock, memory_order_release);
                 if (!ret) {
@@ -570,7 +568,6 @@ send_poll_loop(void *arg)
         *err_total += err_query + err_poll;
     }
 EXIT:
-    printf("thread exits\n");
     *thrd_state = *err_total ? FAIL : SUCC;
     inl_free_query_thread_ctx(thrd_ctx);
     return err_total;
@@ -823,6 +820,7 @@ wlpq_threads_launch_async(wlpq_conn_ctx_st *conn_ctx)
     check(ret == 0, ERR_FAIL, WLPQ, "creating thread");
     return 1;
 error:
+    pthread_attr_destroy(&attr);
     return 0;
 }
 

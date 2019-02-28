@@ -169,13 +169,7 @@
 **  FUNCTION MACROS
 */
 
-#define GET_LAST_DATA_ACCESS(arg)\
-    do {\
-        char *ptr;\
-        arg = (time_t) strtol(getenv("LAST_DATA_ACCESS"), &ptr, 10);\
-        check(arg != LONG_MAX, ERR_FAIL_A, EMISS_ERR,\
-            "converting string to long:", "integer overflow");\
-    } while (0)
+
 
 /*  Byte length calculation. */
 #define SIZE_IN_BYTES(object)\

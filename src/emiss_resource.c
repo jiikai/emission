@@ -428,14 +428,12 @@ frmt_map_chart_data(emiss_template_st *template_data,
     uint8_t dataset_id, uint8_t per_capita, unsigned year,
     void *cbdata)
 {
-    printf("proceeded to format\n");
     /*  Wait for data retrieval to complete. */
     volatile atomic_flag *not_ready = &query_res->in_progress;
     struct timespec timer = TIMESPEC_INIT_S_MS(0, 5);
     do
         nanosleep(&timer, 0);
     while (atomic_flag_test_and_set(not_ready));
-    printf("queries ready\n");
     /*  Allocate space for result string and grab pointers. */
     size_t count      = query_res->count,
     countrydata_len   = count * STRLLEN(",{\"code\":\"XX\",\"data\":}") + count * 0xF;
@@ -558,7 +556,6 @@ retrieve_matching_data(emiss_template_st *template_data, unsigned from_year,
     unsigned to_year, uint8_t dataset, uint8_t per_capita, char *country_codes,
     size_t ncountries, void *cbdata)
 {
-    printf("retrieve matching\n");
     emiss_resource_ctx_st *rsrc_ctx = template_data->rsrc_ctx;
     char buf[0x600] = {0};
     char out[0x600] = {0};
@@ -624,7 +621,6 @@ retrieve_matching_data(emiss_template_st *template_data, unsigned from_year,
             check(qr_dt, ERR_FAIL, EMISS_ERR, "initializing query data structure");
             check(wlpq_query_queue_enqueue(rsrc_ctx->conn_ctx, qr_dt),
                     ERR_FAIL, EMISS_ERR, "enqueuing query to db");
-            printf("enqueued query:\n%s\n", out);
             ret = binary_search_str_arr(ccount, 4, iso3codes, code);
             if (ret != -1) {
                 res_dest_arr[i]->name = names[ret];
@@ -711,7 +707,6 @@ static int
 format_chart_html(emiss_template_st *template_data,
     size_t i, const char *qstr, void *cbdata)
 {
-    printf("%d\n", (int)strlen(qstr));
     return template_data->output_function(cbdata, 200,
                             template_data->rsrc_ctx->template_frmtless_size[i] + strlen(qstr),
                             "text/html", "close", bdata(template_data->rsrc_ctx->template[i]),
@@ -765,7 +760,7 @@ emiss_resource_ctx_init()
 
     rsrc_ctx->conn_ctx = wlpq_conn_ctx_init(0);
     check(rsrc_ctx->conn_ctx, ERR_FAIL, EMISS_ERR, "initializing resources: unable to init db");
-
+    wlpq_threads_launch_async(rsrc_ctx->conn_ctx);
     rsrc_ctx->cdata = calloc(1, sizeof(struct country_data));
     check(rsrc_ctx->cdata, ERR_MEM, EMISS_ERR);
     int ret = retrieve_country_data(rsrc_ctx);
@@ -799,7 +794,7 @@ emiss_resource_ctx_init()
     rsrc_ctx->template[1]               = read_to_bstring(EMISS_JS_ROOT"/chart.js", &nplacehold[1]);
     rsrc_ctx->template_frmtless_size[1] = blength(rsrc_ctx->template[1]) - nplacehold[1] * 2;
 
-    wlpq_threads_launch_async(rsrc_ctx->conn_ctx);
+
 
     return rsrc_ctx;
 error:

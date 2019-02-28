@@ -24,20 +24,31 @@ struct file_metadata {
 };
 
 /*
-**  MACROS
-*/
-
-#define COMPILE_PCRE_REGEX(str, rgx)\
-    do {\
-        const char *pcre_error_msg;\
-        int pcre_error_offset;\
-        rgx = pcre_compile(str, 0, &pcre_error_msg, &pcre_error_offset, NULL);\
-        check(rgx, ERR_EXTERN_AT, "PCRE", pcre_error_msg, pcre_error_offset);\
-    } while(0)
-
-/*
 **  FUNCTIONS
 */
+
+static inline time_t
+last_data_access_get()
+{
+    time_t access_time = (time_t) strtol(getenv("LAST_DATA_ACCESS"), 0, 10);
+    check(access_time != LONG_MAX, ERR_FAIL_A, EMISS_ERR,
+        "converting string to long:", "integer overflow");
+    return access_time;
+error:
+    return -1;
+}
+
+static inline int
+regex_compile(pcre *regex, char *str)
+{
+    const char *pcre_error_msg;
+    int pcre_error_offset;
+    regex = pcre_compile(str, 0, &pcre_error_msg, &pcre_error_offset, 0);
+    check(regex, ERR_EXTERN_AT, "PCRE", pcre_error_msg, pcre_error_offset);
+    return 1;
+error:
+    return 0;
+}
 
 /*  INLINE INSTANTIATIONS */
 
@@ -255,7 +266,7 @@ emiss_retrieve_data()
 
     /*  Extract only files with names not matching these regular expressions. */
     char *exclusion_rgxs[] = {
-        NULL,
+        0,
         /*  Metadata about individual indicators is not currently stored. */
         "Metadata_Indicator",
         /*  Country metadata is identical between indicator files,
@@ -266,13 +277,14 @@ emiss_retrieve_data()
     /*  Decompress data retrieved from Worldbank and store uncompressed
         sizes at file_sizes.
     */
-    size_t i = 1;
-    size_t j = i;
+    size_t  i = 1,
+            j = i;
     do {
-        pcre *regex;
-        COMPILE_PCRE_REGEX(exclusion_rgxs[i], regex);
+        pcre *regex = 0;
+        if (!regex_compile(regex, exclusion_rgxs[i]))
+            log_err(ERR_FAIL, EMISS_ERR, "compiling exclusion regex");
         char path[0x100];
-        sprintf(path, "%s.zip", resources[i]);
+        snprintf(path, 0xFF, "%s.zip", resources[i]);
         int filecount = decompress_to_disk(path, EMISS_DATA_ROOT, regex, &file_sizes[j]);
         check(filecount != -1, ERR_FAIL, EMISS_ERR, "decompressing files");
         j += filecount;
@@ -297,8 +309,11 @@ emiss_retrieve_data()
         DATASET_POPT,
         DATASET_META
     };
-    time_t last_update;
-    GET_LAST_DATA_ACCESS(last_update);
+    time_t last_update = last_data_access_get();
+    if (last_update == -1) {
+        log_err(ERR_FAIL, EMISS_ERR, "Obtaining last access date, using a value of 0");
+        last_update = 0;
+    }
     emiss_update_ctx_st *upd_ctx = emiss_update_ctx_init("../resources/data/in_tui_chart_map.txt");
     check(upd_ctx, ERR_FAIL, EMISS_ERR, "initializing update context structure");
     uintmax_t tmp = file_sizes[2];

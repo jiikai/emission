@@ -153,7 +153,7 @@ option {
   border-radius: 2px;
   color: inherit;
   font-family: inherit;
-  font-size: inheri t;
+  font-size: inherit;
   margin: 1vmin auto;
   min-width: 125px;
   outline: none;
@@ -258,6 +258,7 @@ option {
 .container-select-blk {
   @extend %container-base;
   display: inline-block;
+  margin: auto;
   max-width: 840px;
   select {
     @extend %select-base;

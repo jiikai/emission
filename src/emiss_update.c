@@ -198,7 +198,6 @@ cb_country(void *field, size_t len, void *data)
                     ERR_FAIL, EMISS_ERR, "appending to db job queue");
                 memset(tmp, 0, tmp_len);
                 memcpy(tmp, str, 3);
-                //printf("%s\n", query);
                 free(query);
             } else {
                 memcpy(tmp, str, len);
@@ -274,7 +273,6 @@ cb_data(void *field, size_t len, void *data)
 		char *query = calloc(strlen(out) + 1, sizeof(char));
 		memcpy(query, out, strlen(out));
 		query_data = wlpq_query_init(query, 0, 0, 0, 0, 0, 0);
-        printf("%s\n", query);
         free(query);
     } else if (year >= EMISS_YEAR_ZERO && year <= EMISS_YEAR_LAST) {
         const char *table = "Datapoint",
@@ -334,7 +332,6 @@ cb_year(void *field, size_t len, void *data)
 		query_data = wlpq_query_init(query, 0, 0, 0, 0, 0, 1);
 		check(query_data, ERR_FAIL, EMISS_ERR, "creating query data struct");
 		check(wlpq_query_queue_enqueue(upd_ctx->conn_ctx, query_data), ERR_FAIL, EMISS_ERR, "appending to db job queue");
-        //printf("%s\n", query);
         free(query);
     }
     return;
@@ -523,18 +520,27 @@ error:
     return 0;
 }
 
-int
+/*  An asynchronous (relative to server tasks) update process is in development. */
+int *
 emiss_update_start_async()
 {
+    int *retval = malloc(sizeof(int));
+    if (!retval) {
+        log_err(ERR_MEM, EMISS_ERR);
+        return 0;
+    }
+    *retval = -1;
     pthread_attr_t attr;
     int pthrdret = pthread_attr_init(&attr);
     check(pthrdret == 0, ERR_FAIL, WLPQ, "initializing thread attributes");
     pthrdret = pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
     check(pthrdret == 0, ERR_FAIL, WLPQ, "setting thread detach state");
-    pthrdret = pthread_create(0, &attr, emiss_retrieve_async_start, 0);
+    pthrdret = pthread_create(0, &attr, emiss_retrieve_async_start, retval);
     check(pthrdret == 0, ERR_FAIL, WLPQ, "creating thread");
+    *retval = 1;
 error:
-    return -1;
+    pthread_attr_destroy(&attr);
+    return retval;
 }
 
 size_t
@@ -591,18 +597,14 @@ emiss_update_parse_send(emiss_update_ctx_st *upd_ctx,
                     continue;
                 }
             }
-            printf("commence reading\n");
             ret = wlcsv_file_read(wlcsv_ctx, file_sizes[i] ?
                         file_sizes[i] + 10 : default_sz);
             check(ret, ERR_EXTERN, WLCSV, "reading csv file");
-            printf("success\n");
         } else {
-            printf("commence reading metadata\n");
             wlcsv_state_lineskip_set(wlcsv_stt, 0);
             wlcsv_state_options_set(wlcsv_stt, 1);
             ret = wlcsv_file_read(wlcsv_ctx, file_sizes[i]);
             check(ret, ERR_EXTERN, WLCSV, "reading csv file");
-            printf("success\n");
             wlcsv_callbacks_toggle(wlcsv_ctx, callback_ids[5]);
             callback_ids[5] = 0;
         }
@@ -616,7 +618,6 @@ emiss_update_parse_send(emiss_update_ctx_st *upd_ctx,
         }
         retval += ret;
     }
-    printf("cleaning up\n");
     emiss_update_ctx_free(upd_ctx);
     return retval;
 error:

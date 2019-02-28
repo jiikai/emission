@@ -179,7 +179,6 @@ emiss_conn_printf_function(void *at,
     const char *restrict conn_action,
     const char *restrict frmt, ...)
 {
-    printf("output\n");
 	struct mg_connection *conn = (struct mg_connection *)at;
     /*  Try to send response header. */
     int ret = mg_printf(conn, HTTP_RESPONSE_HDR, http_response_code,
@@ -192,10 +191,8 @@ emiss_conn_printf_function(void *at,
     /*  Send message body. */
     va_list args;
 	va_start(args, frmt);
-    printf("send body\n");
 	ret = modified_mg_vprintf(conn, frmt, args);
     va_end(args);
-    printf("sent!\n" );
 	return ret;
 }
 
@@ -330,7 +327,7 @@ emiss_server_ctx_init(emiss_template_st *template_data)
 	/* 	Initialize the CivetWeb server. */
     mg_init_library(0);
     const char *options[] = {
-        "listening_ports", getenv("PORT"), 0
+        "listening_ports", CIVET_SERVER_PORT, 0
     };
     struct mg_context *civet_ctx = mg_start(&server->civet_callbacks, 0, options);
 	check(civet_ctx, ERR_FAIL, EMISS_MSG, "initializing Civetweb server");
@@ -411,10 +408,10 @@ emiss_server_run(emiss_server_ctx_st *server_ctx)
     int ret = sigaction(SIGTERM, &server_ctx->sigactor, NULL);
     check(ret == 0, ERR_FAIL, EMISS_MSG, "to set signal handler, aborting process");
 
-    for (size_t i = 0; i < server_ctx->ports_count && i < 32; i++) {
+    for (int i = 0; i < server_ctx->ports_count && i < 32; i++) {
 		const char *protocol = DEFINE_PROTOCOL(server_ctx, i);
     	if ((server_ctx->civet_ports[i].protocol & 1) == 1)
-            fprintf(stdout, "%s IPv4 connection on port %lu\n", protocol, i);
+            fprintf(stdout, "%s IPv4 connection on port %d\n", protocol, i);
     }
 
     while (!terminate)
