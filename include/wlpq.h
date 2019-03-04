@@ -228,6 +228,11 @@ wlpq_query_run_blocking(wlpq_conn_ctx_st *ctx, char *stmt_or_cmd,
     char **param_values, int *param_lengths, uint8_t nparams,
     wlpq_res_handler_ft *callback, void *cb_arg);
 
+/*!
+*/
+uint8_t
+wlpq_threads_active(wlpq_conn_ctx_st *ctx);
+
 /*! Launch the sends/poll threads.
 
     Blocks until complete.

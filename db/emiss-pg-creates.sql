@@ -1,3 +1,5 @@
+/*	Tables needed for the database. Currently entered manually. */
+
 CREATE TABLE IncomeGroup (
 	id SERIAL PRIMARY KEY,
 	ordinal integer UNIQUE,
@@ -35,4 +37,10 @@ CREATE TABLE Datapoint (
 	emission_kt double precision,
 	population_total bigint,
 	UNIQUE (country_code, yeardata_year)
+);
+
+CREATE TABLE DataUpdate (
+	tmstmp timestamp PRIMARY KEY DEFAULT CURRENT_TIMESTAMP,
+	checked boolean,
+	run boolean
 );

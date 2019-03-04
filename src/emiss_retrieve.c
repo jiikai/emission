@@ -29,17 +29,6 @@ struct file_metadata {
 **  FUNCTIONS
 */
 
-static inline time_t
-last_data_access_get()
-{
-    time_t access_time = (time_t) strtol(getenv("LAST_DATA_ACCESS"), 0, 10);
-    check(access_time != LONG_MAX, ERR_FAIL_A, EMISS_ERR,
-        "converting string to long:", "integer overflow");
-    return access_time;
-error:
-    return -1;
-}
-
 static inline int
 regex_compile(pcre *regex, char *str)
 {
@@ -51,11 +40,6 @@ regex_compile(pcre *regex, char *str)
 error:
     return 0;
 }
-
-/*  INLINE INSTANTIATIONS */
-
-extern inline int
-emiss_should_check_for_update();
 
 /*  STATIC DEFINITIONS */
 
@@ -226,7 +210,7 @@ error:
 /*  PROTYPE IMPLEMENTATIONS */
 
 int
-emiss_retrieve_data()
+emiss_retrieve_data(emiss_retrieved_files_st *retrieved_files_data)
 {
     /*  Protocol to use (http or https). */
     char const *protocols[] = {
@@ -299,36 +283,31 @@ emiss_retrieve_data()
         upload the results to database if they have been marked as updated later than the
     */
 
-    char *paths[] = {
-        EMISS_DATA_ROOT"/"DATASET_0_NAME".csv",
-        EMISS_DATA_ROOT"/"DATASET_1_NAME".csv",
-        EMISS_DATA_ROOT"/"DATASET_2_NAME".csv",
-        EMISS_DATA_ROOT"/"DATASET_META_NAME".csv"
-    };
-    int dataset_ids[] = {
-        DATASET_COUNTRY_CODES,
-        DATASET_CO2E,
-        DATASET_POPT,
-        DATASET_META
-    };
-    time_t last_update = last_data_access_get();
-    if (last_update == -1) {
-        log_err(ERR_FAIL, EMISS_ERR, "Obtaining last access date, using a value of 0");
-        last_update = 0;
-    }
-    emiss_update_ctx_st *upd_ctx = emiss_update_ctx_init("../resources/data/in_tui_chart_map.txt");
-    check(upd_ctx, ERR_FAIL, EMISS_ERR, "initializing update context structure");
     uintmax_t tmp = file_sizes[2];
     file_sizes[2] = file_sizes[3];
     file_sizes[3] = tmp;
+    *retrieved_files_data = (emiss_retrieved_files_st){
+        .paths = {
+            EMISS_DATA_ROOT"/"DATASET_0_NAME".csv",
+            EMISS_DATA_ROOT"/"DATASET_1_NAME".csv",
+            EMISS_DATA_ROOT"/"DATASET_2_NAME".csv",
+            EMISS_DATA_ROOT"/"DATASET_META_NAME".csv"
+        },
+        .file_sizes = {0}
+    };
+    memcpy(&retrieved_files_data->file_sizes, file_sizes, EMISS_NINDICATORS + 1);
+    return 1;
+    /*emiss_update_ctx_st *upd_ctx = emiss_update_ctx_init("../resources/data/in_tui_chart_map.txt");
+    check(upd_ctx, ERR_FAIL, EMISS_ERR, "initializing update context structure");
+
     ret = emiss_update_parse_send(upd_ctx, paths,
             file_sizes, 4, dataset_ids,
             last_update);
-    check(ret != -1, ERR_FAIL, EMISS_ERR, "processing csv data");
+    check(ret != -1, ERR_FAIL, EMISS_ERR, "processing csv data");*/
     /*  Log update status to console, save the time to
         LAST_DATA_ACCESS and return.
     */
-    struct tm update_time_utc;
+    /*struct tm update_time_utc;
     char time_str_buf[0x100];
     strftime(time_str_buf, 0xFF, "%F",
         gmtime_r(&last_update, &update_time_utc));
@@ -338,7 +317,7 @@ emiss_retrieve_data()
     else
         fprintf(stdout, "Data (last checked at %s) was succesfully updated.",
             time_str_buf);
-    return (int) time(0);
+    return (int) time(0);*/
 error:
     return 0;
 }

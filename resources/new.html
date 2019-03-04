@@ -11,7 +11,6 @@
     <!--<link rel="manifest" href="site.webmanifest">-->
     <!-- DNS prefetch -->
     <link rel="dns-prefetch" href="//use.fontawesome.com">
-    <link rel="dns-prefetch" href="//code.jquery.com">
     <link rel="dns-prefetch" href="//uicdn.toast.com">
     <!-- Local CSS -->
     <link rel="stylesheet" type="text/css" href="./css/all.min.css">
@@ -20,11 +19,6 @@
           href="https://use.fontawesome.com/releases/v5.6.3/css/all.css"
           integrity="sha384-UHRtZLI+pbxtHCWp1t77Bi1L4ZtiqrqD80Kn4Z8NTSRyMA2Fd33n5dQ8lWUE00s/"
           crossorigin="anonymous">
-    <!-- jQuery (CDN) -->
-    <script type="application/javascript" src="https://code.jquery.com/jquery-3.3.1.slim.min.js"
-            integrity="sha256-3edrmyuQ0w65f8gfBsqowzjJe2iM6n0nKciPUp8y+7E="
-            crossorigin="anonymous" defer>
-    </script>
     <!-- Local script -->
     <script type="application/javascript" src="./js/param.js" defer></script>
   </head>
@@ -73,8 +67,8 @@
         </div>
         <br>
         <div class="wrapper-blk">
-          <span id=span-data-range hidden>Select a data range:</span>
-          <div class="container-select-row narrow select-data-range" hidden>
+          <span id="span-data-range" hidden>Select a data range:</span>
+          <div id="select-range" class="container-select-row narrow select-data-range" hidden>
             <select id="from-year" name="from_year" size="1"
                     title="Select a starting year for the chart data range.">
               <option value="" selected disabled hidden>From year...</option>
@@ -84,16 +78,16 @@
               <option value="" selected disabled hidden>To year...</option>
            </select>
           </div>
-          <div class="container-select-blk narrow select-data-year" hidden>
-            <span id=span-data-range hidden>Select a year:</span>
-            <select id="select-year" name="select_year" size="1" class="narrower"
+          <div id="select-year" class="container-select-blk narrow select-data-year" hidden>
+            <span id="span-data-year" hidden>Select a year:</span>
+            <select id="choice-year" name="select_year" size="1" class="narrower"
               title="Select a year for the chart data.">
               <option value="" selected disabled hidden>Year...</option>
             </select>
           </div>
         </div>
        <br>
-       <div class="wrapper-mul search-countries" hidden>
+       <div id="search-countries" class="wrapper-mul search-countries" hidden>
          <div class="container-search">
             <input type="text" id="cntr-count" name="count" value="0" hidden>
             <div class="search-field">

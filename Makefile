@@ -29,7 +29,7 @@ TEST_BINS := $(patsubst %.c,%,$(TEST_SRCS))
 default: all
 
 all: $(BINDIR)
-	$(CC) $(CFLAGS) $(SRCS) -DNDEBUG -DHEROKU -o $(MAIN_BINS) $(LIBS)
+	$(CC) $(CFLAGS) $(SRCS) -DHEROKU -o $(MAIN_BINS) $(LIBS)
 
 $(BINDIR):
 	mkdir $@

@@ -207,6 +207,13 @@ typedef int (emiss_template_ft)(emiss_template_st *template_data,
 /*!  For use with bsearch() */
 typedef int (emiss_compar_ft)(const void *a, const void *b);
 
+typedef enum emiss_dataset_code {
+    COUNTRY_CODES,
+    EN_ATM_CO2E_KT,
+    SP_POP_TOTL,
+    COUNTRY_METADATA
+} emiss_dataset_code_et;
+
 /*!  Definition of the template structure declared above. */
 struct emiss_template_s {
     emiss_resource_ctx_st          *rsrc_ctx;
@@ -216,40 +223,21 @@ struct emiss_template_s {
     emiss_printfio_ft              *output_function;
 };
 
+typedef struct emiss_retrieved_files {
+    char      *paths[EMISS_NINDICATORS + 1];
+    uintmax_t  file_sizes[EMISS_NINDICATORS];
+} emiss_retrieved_files_st;
+
 /*! An opaque handle for the server context structure.
     Implemented in emiss_server.c.
 */
 typedef struct emiss_server_ctx emiss_server_ctx_st;
 
+
+
 /*
 ** FUNCTIONS
 */
-
-/*  --> emiss_retrieve.c <-- */
-
-/*! Check the timestamp of last data retrieval.
-
-    Queries the environment variable `LAST_DATA_ACCESS` for the last time data was downloaded from
-    a remote source. An inline function.
-
-    @return If less than `EMISS_UPDATE_INTERVAL`, `0`, if equal to or greater, `1`, on error, `-1`.
-    @see emiss_retrieve_data(), `EMISS_UPDATE_INTERVAL`
-*/
-inline int
-emiss_should_check_for_update()
-{
-    char *time_str = getenv("LAST_DATA_ACCESS");
-    time_t current_time, last_access_time = time_str ? (time_t) strtol(time_str, 0, 10) : 0;
-    if (last_access_time == LONG_MAX)
-        log_err(ERR_FAIL_A, EMISS_ERR, "converting string to long:", "integer overflow");
-	else if (time(&current_time) == -1)
-        log_err(ERR_FAIL, EMISS_ERR, "obtaining current time in seconds");
-	else if (difftime(current_time, last_access_time) >= EMISS_UPDATE_INTERVAL)
-        return 1;
-    else
-        return 0;
-    return -1;
-}
 
 /*! Fetch data from a remote source [TODO elaboration] and decompress all files if they zipped.
 
@@ -258,7 +246,7 @@ emiss_should_check_for_update()
     @see emiss_should_check_for_update()
 */
 int
-emiss_retrieve_data();
+emiss_retrieve_data(emiss_retrieved_files_st *retrieved_files_data);
 
 void *
 emiss_retrieve_async_start();
@@ -267,14 +255,19 @@ emiss_retrieve_async_start();
 
 /*! Allocate and initialize the data parser & updater context structure.
 
-    @param tui_chart_data_path [TODO]
+    @param tui_chart_data   Path to a list of ISO2 codes of countries that are present in the world
+                            map of tui.chart.
+    @param conn_ctx         An initialized wlpq database connection context structure.
+    @param conn_ctx_free_after_use
+
+    If @conn_ctx == NULL, the update context structure will allocate its own connection context.
 
     @return The initialized data update context structure or NULL on error.
 
     @see emiss_update_ctx_free()
 */
 emiss_update_ctx_st *
-emiss_update_ctx_init(char *tui_chart_worldmap_data_path);
+emiss_update_ctx_init(wlpq_conn_ctx_st *conn_ctx, const char *tui_chart_data);
 
 /*! Deallocate the data parser & updater context structure.
 
@@ -303,6 +296,7 @@ emiss_update_ctx_free(emiss_update_ctx_st *upd_ctx);
 
     @see emiss_update_ctx_free(), emiss_update_ctx_init()
 */
+
 size_t
 emiss_update_parse_send(emiss_update_ctx_st *upd_ctx,
     char **paths, uintmax_t *file_sizes, size_t npaths,
@@ -327,6 +321,27 @@ emiss_resource_ctx_free(emiss_resource_ctx_st *rsrc_ctx);
 */
 emiss_resource_ctx_st *
 emiss_resource_ctx_init();
+
+/*! */
+inline int
+emiss_resource_should_check_update(wlpq_conn_ctx_st *conn_ctx,
+    wlpq_res_handler_ft *res_handler)
+{
+    time_t current_time, last_updated = 0;
+    int ret = wlpq_query_run_blocking(conn_ctx,
+                        "SELECT EXTRACT(epoch FROM (SELECT max(tmstmp) FROM DataUpdate))::integer;",
+                        0, 0, 0, (wlpq_res_handler_ft *)
+                        res_handler, &last_updated);
+    if (ret == -1 || last_updated == LONG_MAX)
+        log_err(ERR_FAIL, EMISS_ERR, "obtaining last updated data");
+    else if (time(&current_time) == -1)
+        log_err(ERR_FAIL, EMISS_ERR, "obtaining current time in seconds");
+    else if (difftime(current_time, last_updated) >= EMISS_UPDATE_INTERVAL)
+        return 1;
+    else
+        return 0;
+    return -1;
+}
 
 /*! Return a pointer to a static asset stored in memory.
 

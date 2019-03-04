@@ -42,12 +42,13 @@ typedef struct ht_country_code {
 struct emiss_update_ctx {
     wlcsv_ctx_st               *lcsv_ctx;
     wlcsv_state_st             *lcsv_stt;
-    uint8_t                     callback_ids[NCALLBACKS];
-    wlpq_conn_ctx_st           *conn_ctx;
     char                       *cbdata;
     size_t                      cbdata_max_size;
     ht_country_code_st         *ccodes;
     int                         ccount;
+    wlpq_conn_ctx_st           *conn_ctx;
+    uint8_t                     callback_ids[NCALLBACKS];
+    uint8_t                     conn_ctx_free_after_use;
     uint8_t                     dataset_id;
     char                      (*tui_chart_worldmap_data)[3];
     int                         tui_chart_worldmap_ccount;
@@ -334,8 +335,9 @@ cb_world_data(void *field, size_t len, void *data)
                     - 4);
 	if (year < EMISS_YEAR_ZERO || year > EMISS_YEAR_LAST)
 		return;
-    char buf[0x1000], out[0x1000] = {0};
 
+    char buf[0x1000] = {0};
+    char out[0x1000] = {0};
     uint8_t dataset_id = upd_ctx->dataset_id;
     const char *str = (const char *)field,
                *set =  dataset_id == DATASET_CO2E
@@ -358,10 +360,9 @@ static void
 cb_world(void *field, size_t len, void *data)
 {
     emiss_update_ctx_st *upd_ctx = (emiss_update_ctx_st *)data;
-    unsigned row = WLCSV_STATE_MEMB_GET(upd_ctx->lcsv_stt, row);
-    upd_ctx->callback_ids[4] = wlcsv_callbacks_set(upd_ctx->lcsv_ctx,
-                                    ROW, WLCSV_MATCH_NUM(row),
-                                    cb_world_data, upd_ctx, 0);
+    upd_ctx->callback_ids[4] = wlcsv_callbacks_set(upd_ctx->lcsv_ctx, ROW,
+                                    WLCSV_MATCH_NUM(WLCSV_STATE_MEMB_GET(upd_ctx->lcsv_stt,
+                                    row)), cb_world_data, upd_ctx, 0);
     memcpy(&upd_ctx->cbdata, data, len);
 }
 
@@ -386,12 +387,14 @@ eor_flush_cbdata_buffer(void *data)
 {
     emiss_update_ctx_st *upd_ctx = (emiss_update_ctx_st *)data;
     wlcsv_ctx_st *wlcsv_ctx = upd_ctx->lcsv_ctx;
+
     if (!upd_ctx->callback_ids[3] && upd_ctx->cbdata && upd_ctx->cbdata[0] == 'V')
         upd_ctx->callback_ids[3] = wlcsv_callbacks_set(wlcsv_ctx,
                                         KEYWORD, WLCSV_MATCH_STR("World"),
                                         cb_world, upd_ctx, 1);
     else if (upd_ctx->callback_ids[3] && upd_ctx->cbdata && upd_ctx->cbdata[0] == 'V')
         wlcsv_callbacks_toggle(wlcsv_ctx, upd_ctx->callback_ids[3]);
+
     memset(upd_ctx->cbdata, 0, strlen(upd_ctx->cbdata));
 }
 
@@ -400,6 +403,7 @@ eor_wait_until_queries_done(void *data)
 {
     emiss_update_ctx_st *upd_ctx = (emiss_update_ctx_st *)data;
     wlcsv_ctx_st *wlcsv_ctx = upd_ctx->lcsv_ctx;
+
     upd_ctx->callback_ids[1] = wlcsv_callbacks_set(wlcsv_ctx,
                                     COLUMN, WLCSV_MATCH_NUM(0U),
                                     cb_country, upd_ctx, 0);
@@ -408,8 +412,9 @@ eor_wait_until_queries_done(void *data)
                                     cb_country, upd_ctx, 0);
     if (upd_ctx->dataset_id == DATASET_META)
         upd_ctx->callback_ids[5] = wlcsv_callbacks_set(wlcsv_ctx,
-                                COLUMN, WLCSV_MATCH_NUM(2U),
-                                cb_country, upd_ctx, 0);
+                                        COLUMN, WLCSV_MATCH_NUM(2U),
+                                        cb_country, upd_ctx, 0);
+
     wlcsv_callbacks_eor_set(wlcsv_ctx, eor_flush_cbdata_buffer);
     memset(upd_ctx->cbdata, 0, upd_ctx->cbdata_max_size);
 }
@@ -461,7 +466,7 @@ emiss_update_ctx_free(emiss_update_ctx_st *upd_ctx)
 {
     if (upd_ctx) {
         wlcsv_free(upd_ctx->lcsv_ctx);
-		if (upd_ctx->conn_ctx)
+		if (upd_ctx->conn_ctx_free_after_use && upd_ctx->conn_ctx)
 			wlpq_conn_ctx_free(upd_ctx->conn_ctx);
         if (upd_ctx->ccodes) {
             ht_country_code_st *current, *tmp;
@@ -479,21 +484,23 @@ emiss_update_ctx_free(emiss_update_ctx_st *upd_ctx)
 }
 
 emiss_update_ctx_st *
-emiss_update_ctx_init(char *tui_chart_worldmap_data_path)
+emiss_update_ctx_init(wlpq_conn_ctx_st *conn_ctx, const char *tui_chart_data)
 {
     emiss_update_ctx_st *upd_ctx = calloc(1, sizeof(emiss_update_ctx_st));
     check(upd_ctx, ERR_MEM, EMISS_ERR);
 
-    int ret = read_tui_chart_worldmap_data(upd_ctx, tui_chart_worldmap_data_path);
-    check(ret, ERR_FAIL, EMISS_ERR, "reading worldmap data from file");
+    upd_ctx->conn_ctx = conn_ctx ? conn_ctx : wlpq_conn_ctx_init(0);
+    check(upd_ctx->conn_ctx, ERR_FAIL, EMISS_ERR, "setting up database context");
+    upd_ctx->conn_ctx_free_after_use = conn_ctx ? 1 : 0;
 
-    upd_ctx->conn_ctx = wlpq_conn_ctx_init(0);
-    check(upd_ctx->conn_ctx, ERR_FAIL, EMISS_ERR, "initializing database context");
+    check(read_tui_chart_worldmap_data(upd_ctx, tui_chart_data),
+            ERR_FAIL, EMISS_ERR, "reading tui.chart worldmap data from file");
 
     upd_ctx->lcsv_ctx = wlcsv_init(0, 0, upd_ctx, 1, 0, 3, 4, 0, WLCSV_IGNORE_EMPTY_FIELDS);
     check(upd_ctx->conn_ctx, ERR_FAIL, EMISS_ERR, "initializing libcsv wrapper structure");
     upd_ctx->lcsv_stt = wlcsv_state_get(upd_ctx->lcsv_ctx);
-    upd_ctx->ccodes   = NULL;
+    upd_ctx->ccodes   = 0;
+
     return upd_ctx;
 error:
     if (upd_ctx)
@@ -501,35 +508,13 @@ error:
     return 0;
 }
 
-/*  An asynchronous (relative to server tasks) update process is in development. */
-int *
-emiss_update_start_async()
-{
-    int *retval = malloc(sizeof(int));
-    if (!retval) {
-        log_err(ERR_MEM, EMISS_ERR);
-        return 0;
-    }
-    *retval = -1;
-    pthread_attr_t attr;
-    int pthrdret = pthread_attr_init(&attr);
-    check(pthrdret == 0, ERR_FAIL, WLPQ, "initializing thread attributes");
-    pthrdret = pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-    check(pthrdret == 0, ERR_FAIL, WLPQ, "setting thread detach state");
-    pthrdret = pthread_create(0, &attr, emiss_retrieve_async_start, retval);
-    check(pthrdret == 0, ERR_FAIL, WLPQ, "creating thread");
-    *retval = 1;
-error:
-    pthread_attr_destroy(&attr);
-    return retval;
-}
-
 size_t
 emiss_update_parse_send(emiss_update_ctx_st *upd_ctx,
     char **paths, uintmax_t *file_sizes, size_t npaths,
     int *dataset_ids, time_t current_version)
 {
-    wlpq_threads_launch_async(upd_ctx->conn_ctx);
+    if (!wlpq_threads_active(upd_ctx->conn_ctx))
+        wlpq_threads_launch_async(upd_ctx->conn_ctx);
     upd_ctx->cbdata_max_size = 0x666;
     upd_ctx->cbdata   = calloc(0x666, sizeof(char));
     check(upd_ctx->cbdata, ERR_MEM, EMISS_ERR);
@@ -563,8 +548,8 @@ emiss_update_parse_send(emiss_update_ctx_st *upd_ctx,
     for (size_t i = 1; i < npaths; i++) {
         wlcsv_callbacks_eor_set(wlcsv_ctx, eor_wait_until_queries_done);
         wlcsv_callbacks_default_set(wlcsv_ctx, cb_data, upd_ctx);
-        ret = wlcsv_file_path(wlcsv_ctx, paths[i], strlen(paths[i]));
-        check(ret, ERR_EXTERN, WLCSV, "setting file path");
+        check(wlcsv_file_path(wlcsv_ctx, paths[i], strlen(paths[i])),
+                ERR_EXTERN, WLCSV, "setting file path");
         upd_ctx->dataset_id = dataset_ids[i];
         if (dataset_ids[i] != DATASET_META) {
             if (current_version) {
@@ -572,11 +557,10 @@ emiss_update_parse_send(emiss_update_ctx_st *upd_ctx,
                 check(ret, ERR_EXTERN, WLCSV, "obtaining preview of csv file");
     			char *temp = upd_ctx->cbdata;
                 time_t updated = temp && strlen(temp)
-                                    ? parse_last_updated_date(temp)
-                                    : (time_t) 0;
-                if (updated && (updated <= current_version)) {
+                                ? parse_last_updated_date(temp)
+                                : 0;
+                if (updated && (updated <= current_version))
                     continue;
-                }
             }
             ret = wlcsv_file_read(wlcsv_ctx, file_sizes[i] ?
                         file_sizes[i] + 10 : default_sz);
@@ -594,9 +578,8 @@ emiss_update_parse_send(emiss_update_ctx_st *upd_ctx,
             callback_ids[0] = 0;
         }
         struct timespec timer = (struct timespec){.tv_sec = 1, .tv_nsec = 0};
-        while (!wlpq_query_queue_empty(upd_ctx->conn_ctx)) {
+        while (!wlpq_query_queue_empty(upd_ctx->conn_ctx))
             nanosleep(&timer, NULL);
-        }
         retval += ret;
     }
     emiss_update_ctx_free(upd_ctx);

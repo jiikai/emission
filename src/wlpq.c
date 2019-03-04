@@ -419,7 +419,8 @@ send_poll_loop(void *arg)
         pgconn_sockfds[i] = PFDS_INIT(PQsocket(pgconn[i]), 0);
 
     /*  The total error count will be the return value on a join. */
-    unsigned *err_total = calloc(1, sizeof(unsigned));
+    unsigned *err_total = 0;
+    err_total = calloc(1, sizeof(unsigned));
     if (!err_total) {
         log_err(ERR_MEM, WLPQ);
         goto EXIT;
@@ -682,7 +683,7 @@ wlpq_query_free(wlpq_query_data_st *data)
 {
     if (data)
         inl_free_query_data(data);
-    data = NULL;
+    data = 0;
 }
 
 wlpq_query_data_st *
@@ -711,18 +712,20 @@ wlpq_query_init(char *stmt_or_cmd, char **param_val,
         memcpy(qr_data->cmd, stmt_or_cmd, stmt_or_cmd_len + 1);
     }
     qr_data->nparams = nparams;
-    qr_data->res_callback = callback ? callback : NULL;
-    qr_data->cb_arg = callback && cb_arg ? cb_arg : NULL;
+    qr_data->res_callback = callback ? callback : 0;
+    qr_data->cb_arg = callback && cb_arg ? cb_arg : 0;
     qr_data->lock_until_complete = lock_until_complete;
     return qr_data;
 error:
-    return NULL;
+    return 0;
 }
 
 uint8_t
 wlpq_query_queue_empty(wlpq_conn_ctx_st *conn_ctx)
 {
-    return atomic_load(&conn_ctx->qqueue_empty);
+    if (conn_ctx)
+        return atomic_load(&conn_ctx->qqueue_empty);
+    return UINT8_MAX;
 }
 
 int
@@ -741,18 +744,18 @@ error:
 }
 
 int
-wlpq_query_run_blocking(wlpq_conn_ctx_st *ctx, char *stmt_or_cmd,
+wlpq_query_run_blocking(wlpq_conn_ctx_st *conn_ctx, char *stmt_or_cmd,
     char **param_val, int *param_len, uint8_t nparams,
     wlpq_res_handler_ft *callback, void *cb_arg)
 {
-    PGconn *conn = open_noblock_conn(ctx->db_url);
+    PGconn *conn = open_noblock_conn(conn_ctx->db_url);
     check(conn, ERR_FAIL, WLPQ, "obtaining a connection");
     PGresult *res;
     if (nparams) /* Prepared statement. */
         res = PQexecParams(conn,
-                stmt_or_cmd, nparams, NULL,
+                stmt_or_cmd, nparams, 0,
                 (const char * const *)param_val,
-                param_len, NULL, 0);
+                param_len, 0, 0);
     else
         res = PQexec(conn, stmt_or_cmd);
 
@@ -773,6 +776,14 @@ wlpq_query_run_blocking(wlpq_conn_ctx_st *ctx, char *stmt_or_cmd,
     return 1;
 error:
     return -1;
+}
+
+uint8_t
+wlpq_threads_active(wlpq_conn_ctx_st *conn_ctx)
+{
+    if (conn_ctx)
+        return atomic_load(&conn_ctx->thread_continue);
+    return UINT8_MAX;
 }
 
 int

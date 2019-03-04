@@ -28,7 +28,8 @@
 #define FRMT_HTML_OPTION_YEAR "<option id=\"f%u\" value=\"%u\">%u</option>\n"
 
 /*  Required size for a buffer holding comma separated years in string format. */
-#define EMISS_SIZEOF_FORMATTED_YEARDATA (EMISS_YEAR_LAST - EMISS_YEAR_ZERO) * 7 + 1
+#define EMISS_SIZEOF_FORMATTED_YEARDATA\
+    (1 + EMISS_YEAR_LAST - EMISS_YEAR_ZERO) * STRLLEN(",\"4242\"")
 
 /*
 **  FUNCTION MACROS
@@ -177,15 +178,47 @@ struct emiss_resource_ctx {
 /*  STATIC  */
 
 static inline int
+run_data_update(emiss_resource_ctx_st *rsrc_ctx,
+    emiss_retrieved_files_st *retrieved_files_data,
+    const char *tui_chart_data, time_t last_update)
+{
+    emiss_update_ctx_st *upd_ctx = emiss_update_ctx_init(rsrc_ctx->conn_ctx, tui_chart_data);
+    check(upd_ctx, ERR_FAIL, EMISS_ERR, "initializing update context structure");
+    int dataset_ids[4] = {DATASET_COUNTRY_CODES, DATASET_CO2E, DATASET_POPT, DATASET_META};
+    int ret = emiss_update_parse_send(upd_ctx, retrieved_files_data->paths,
+                    retrieved_files_data->file_sizes, 4, dataset_ids,
+                    last_update);
+    check(ret != -1, ERR_FAIL, EMISS_ERR, "processing data");
+    /*  Log update status to console, update "Updated" time in db and return. */
+    struct tm update_time_utc;
+    char time_str_buf[0x100];
+    strftime(time_str_buf, 0xFF, "%F", gmtime_r(&last_update, &update_time_utc));
+    char *cmd;
+    if (!ret) {
+        fprintf(stdout, "Data (last checked at %s) was already up to date.", time_str_buf);
+        cmd = "INSERT INTO DataUpdate (checked, run) VALUES (TRUE, FALSE);";
+    } else {
+        fprintf(stdout, "Data (last checked at %s) was succesfully updated.", time_str_buf);
+        cmd = "INSERT INTO DataUpdate (checked, run) VALUES (TRUE, TRUE);";
+    }
+    check(wlpq_query_run_blocking(rsrc_ctx->conn_ctx, cmd, 0, 0, 0, 0, 0) != -1,
+            ERR_FAIL, EMISS_ERR, "inserting update data to database");
+    return ret;
+error:
+    return -1;
+}
+
+static inline int
 fill_yeardata_buffer(char *buf, size_t len)
 {
-    unsigned i = EMISS_YEAR_ZERO, j = 0;
+    unsigned  i = EMISS_YEAR_ZERO,
+              j = 0;
     int ret = snprintf(buf, len - 1, "\"%u\"", i);
     check(ret != -1, ERR_FAIL, EMISS_ERR, "printf'ing to buffer");
     j += ret;
-    for (i += 1; i <= EMISS_YEAR_LAST; ++i) {\
-        j += ret;
+    for (i = EMISS_YEAR_ZERO + 1; i <= EMISS_YEAR_LAST; ++i) {
         ret = snprintf(&buf[j], len - 1, ",\"%u\"", i);
+        j += ret;
     }
     return j;
 error:
@@ -505,12 +538,11 @@ frmt_line_chart_data(emiss_template_st *template_data, unsigned year_start,
         year_end = year_start + 1;
     emiss_resource_ctx_st *rsrc_ctx = template_data->rsrc_ctx;
 
-    char *yeardata = calloc((1 + year_end - year_start) * 7, sizeof(char));
+    char *yeardata = calloc((1 + year_end - year_start) * STRLLEN(",\"4242\""), sizeof(char));
     check(yeardata, ERR_MEM, EMISS_ERR);
     char *years_formatted = rsrc_ctx->yeardata_formatted;
-    size_t yeardata_len = (1 + year_end - year_start) * (sizeof(",\"0123\"") - 1) - 1;
+    size_t yeardata_len = (1 + year_end - year_start) * STRLLEN(",\"4242\"") - 1;
     memcpy(yeardata, &years_formatted[(year_start - EMISS_YEAR_ZERO) * 7], yeardata_len);
-
     unsigned ndatapoints = (1 + year_end - year_start) * nitems;
     size_t countrydata_len = nitems * (STRLLEN("{\"name\":\"\",\"data\":[]},") - 1
                              + ndatapoints * 0x10) + names_bytelen;
@@ -548,6 +580,7 @@ frmt_line_chart_data(emiss_template_st *template_data, unsigned year_start,
         free(query_res[i]);
     }
     free(query_res);
+
     const char *js = bdata(rsrc_ctx->template[1]);
     uintmax_t byte_size = rsrc_ctx->template_frmtless_size[1]
                             + STRLLEN("line") + j + yeardata_len + k +
@@ -732,7 +765,19 @@ format_chart_html(emiss_template_st *template_data,
                             qstr);
 }
 
+
+static void
+callback_save_last_updated(PGresult *res, void *arg)
+{
+    if (PQntuples(res))
+        *((time_t *)arg) = (time_t) strtol(PQgetvalue(res, 0, 0), 0, 10);
+}
+
 /*  EXTERN INLINE INSTANTIATIONS */
+
+extern inline int
+emiss_resource_should_check_update(wlpq_conn_ctx_st *conn_ctx,
+        wlpq_res_handler_ft *res_handler);
 
 extern inline void
 emiss_resource_template_free(emiss_template_st *template_data);
@@ -780,12 +825,24 @@ emiss_resource_ctx_init()
     rsrc_ctx->conn_ctx = wlpq_conn_ctx_init(0);
     check(rsrc_ctx->conn_ctx, ERR_FAIL, EMISS_ERR, "initializing resources: unable to init db");
     wlpq_threads_launch_async(rsrc_ctx->conn_ctx);
+
+    time_t ret = emiss_resource_should_check_update(rsrc_ctx->conn_ctx,
+        (wlpq_res_handler_ft *)callback_save_last_updated);
+    check(ret != -1, ERR_FAIL, EMISS_ERR, "obtaining update time");
+    if (ret) {
+        emiss_retrieved_files_st retrieved_files_data;
+        check(emiss_retrieve_data(&retrieved_files_data) != -1,
+                ERR_FAIL, EMISS_ERR, "retrieving data from a remote source");
+        check(run_data_update(rsrc_ctx, &retrieved_files_data,
+                        "../resources/data/in_tui_chart_map.txt", ret) != -1,
+                        ERR_FAIL, EMISS_ERR, "updating database with retrieved data");
+    }
     rsrc_ctx->cdata = calloc(1, sizeof(struct country_data));
     check(rsrc_ctx->cdata, ERR_MEM, EMISS_ERR);
     check(retrieve_country_data(rsrc_ctx), ERR_FAIL, EMISS_ERR,
             "initializing resources: unable to retrieve country data");
 
-    int ret = fill_yeardata_buffer(rsrc_ctx->yeardata_formatted, EMISS_SIZEOF_FORMATTED_YEARDATA);
+    ret = fill_yeardata_buffer(rsrc_ctx->yeardata_formatted, EMISS_SIZEOF_FORMATTED_YEARDATA);
     check(ret, ERR_FAIL, EMISS_ERR, "initializing resources: failed formatting year data");
 
     size_t nplacehold[EMISS_NTEMPLATES] = {0};

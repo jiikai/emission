@@ -1,3 +1,5 @@
+/*  These are for possible future use. */
+
 CREATE TABLE Indicator (
     id PRIMARY KEY,
     source_id integer REFERENCES Source(id),
