@@ -8,7 +8,7 @@ All of the server-side functionality - including the fetching, parsing, uploadin
 
 ### Documentation
 
-See [API documentation](./doc/emiss_api.md).
+See [API documentation](./doc/emiss_api.md). __TODO:__ documentation is partly outdated.
 
 ### Building ###
 
