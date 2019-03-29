@@ -3,6 +3,7 @@
 #include <sys/random.h>
 
 #include "dbg.h"
+#include "util_server.h"
 
 /*
 **  GLOBAL VARIABLES
@@ -84,34 +85,18 @@ volatile sig_atomic_t terminate;
 #define TRANSFER_ENCODING_NONE "identity"
 #define TRANSFER_ENCODING_DEFL "deflate"
 
-#define RES_200_TXT "OK"
-#define RES_404_TXT "Not Found"
-#define RES_405_TXT "Method Not Allowed"
-#define RES_500_TXT "Internal Server Error"
-
-#define HTTP_MIMETYPE_JS "application/javascript"
-#define HTTP_MIMETYPE_CSS "text/css"
-#define HTTP_MIMETYPE_HTML "text/html"
-#define HTTP_MIMETYPE_PLAIN "text/plain"
-#define HTTP_MIMETYPE_WOFF "font/woff"
-#define HTTP_MIMETYPE_WOFF2 "font/woff2"
-#define HTTP_MIMETYPE_EOT "font/eot"
-#define HTTP_MIMETYPE_SVG "font/svg"
-#define HTTP_MIMETYPE_TTF "font/ttf"
-
 /*  Port protocol getter expression. */
 #define DEFINE_PROTOCOL(server, i)\
     (server->civet_ports[i].is_ssl ? "https" : "http")
 
 #define HTTP_EXPIRATION(date_str, buflen)\
-    snprintf(str_out, buflen - 1,"Content-Expire: %s", date_str)
+    snprintf(str_out, buflen - 1, "Content-Expire: %s", date_str)
 
 #define EXPLAIN_SEND_FAILURE(ret)\
-    if (ret == -1) {\
+    if (ret == -1)\
         log_err(ERR_FAIL, EMISS_ERR, "sending HTTP response header");\
-    } else if (!ret) {\
+    else if (!ret)\
         log_warn("[emiss_server]: %s", "Connection was closed before trying to send response.");\
-    }
 
 /*
 **  TYPES AND STRUCTURES
@@ -139,15 +124,18 @@ inl_send_error_response(struct mg_connection *conn, const int code)
     int ret = -1;
     if (code == 404)
         ret = mg_printf(conn, HTTP_RESPONSE_HDR, 404,
-            RES_404_TXT, 0UL, HTTP_MIMETYPE_PLAIN, "close",
+            UTIL_HTTP_RES_STATUS(HTTP_404_NOT_FOUND), 0UL,
+            UTIL_IANA_MIME_TYPE(TXT), "close",
             TRANSFER_ENCODING_NONE, "");
     else if (code == 405)
         ret = mg_printf(conn, HTTP_RESPONSE_HDR, 405,
-            RES_405_TXT, 0UL, HTTP_MIMETYPE_PLAIN, "close",
+            UTIL_HTTP_RES_STATUS(HTTP_405_METHOD_NOT_ALLOWED), 0UL,
+            UTIL_IANA_MIME_TYPE(TXT), "close",
             TRANSFER_ENCODING_NONE, "Allow: GET\r\n");
     else if (code == 500)
         ret = mg_printf(conn, HTTP_RESPONSE_HDR, 500,
-            RES_500_TXT, 0UL, HTTP_MIMETYPE_PLAIN, "close",
+            UTIL_HTTP_RES_STATUS(HTTP_500_INTERNAL_SERVER_ERROR), 0UL,
+            UTIL_IANA_MIME_TYPE(TXT), "close",
             TRANSFER_ENCODING_NONE, "Allow: GET\r\n");
 
     if (ret == -1)
@@ -206,7 +194,7 @@ css_request_handler(struct mg_connection *conn, void *cbdata)
     if (ret)
         return inl_send_error_response(conn, 405);
 
-    mg_send_mime_file(conn, (const char *)cbdata, HTTP_MIMETYPE_CSS);
+    mg_send_mime_file(conn, (const char *)cbdata, UTIL_IANA_MIME_TYPE(CSS));
 	return 200;
 }
 
@@ -225,11 +213,11 @@ font_request_handler(struct mg_connection *conn, void *cbdata)
     	return 404;
     }
     const char *f_ext     = strrchr(req_font, '.') + 1;
-    const char *mime_type = f_ext[strlen(f_ext) - 1] == '2' ? HTTP_MIMETYPE_WOFF2
-                            : f_ext[0] == 'w' ? HTTP_MIMETYPE_WOFF
-                            : f_ext[0] == 't' ? HTTP_MIMETYPE_TTF
-                            : f_ext[0] == 's' ? HTTP_MIMETYPE_SVG
-                            : HTTP_MIMETYPE_EOT;
+    const char *mime_type = f_ext[strlen(f_ext) - 1] == '2' ? UTIL_IANA_MIME_TYPE(WOFF2)
+                            : f_ext[0] == 'w' ? UTIL_IANA_MIME_TYPE(WOFF)
+                            : f_ext[0] == 't' ? UTIL_IANA_MIME_TYPE(TTF)
+                            : f_ext[0] == 's' ? UTIL_IANA_MIME_TYPE(SVG_PLUS_XML_FONT)
+                            : UTIL_IANA_MIME_TYPE(VND_MS_FONTOBJECT);
     snprintf(filepath, 0xFF, "%s%s", EMISS_FONT_ROOT, req_font);
 	mg_send_mime_file(conn, filepath, mime_type);
 	return 200;
@@ -253,11 +241,12 @@ static_resource_request_handler(struct mg_connection *conn, void *cbdata)
                             ? 4 : 0;
     const char *resource    = emiss_resource_static_get(rsrc_ctx, rsrc_idx);
     const char *mime_type   = resource[strlen(resource) - 1] == 's'
-                            ? HTTP_MIMETYPE_JS
-                            : HTTP_MIMETYPE_HTML;
-    ret = mg_printf(conn, HTTP_RESPONSE_HDR, 200, RES_200_TXT,
-            (uintmax_t) emiss_resource_static_size(rsrc_ctx, rsrc_idx),
-            mime_type, "close", TRANSFER_ENCODING_NONE, "");
+                            ? UTIL_IANA_MIME_TYPE(JAVASCRIPT)
+                            : UTIL_IANA_MIME_TYPE(HTML);
+    ret = mg_printf(conn, HTTP_RESPONSE_HDR,
+                200, UTIL_HTTP_RES_STATUS(HTTP_200_OK),
+                (uintmax_t) emiss_resource_static_size(rsrc_ctx, rsrc_idx),
+                mime_type, "close", TRANSFER_ENCODING_NONE, "");
 
     if (ret < 1) {
         EXPLAIN_SEND_FAILURE(ret);

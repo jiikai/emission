@@ -20,6 +20,11 @@
 
 #define NCALLBACKS 10
 
+#define DATA_COLUMN_NAME(dataset_id)\
+    dataset_id == DATASET_CO2E ? "emission_kt" :\
+    dataset_id == DATASET_POPT ? "population_total"\
+    : ""
+
 /*
 **  STRUCTURES AND TYPES
 */
@@ -50,6 +55,7 @@ struct emiss_update_ctx {
     uint8_t                     callback_ids[NCALLBACKS];
     uint8_t                     conn_ctx_free_after_use;
     uint8_t                     dataset_id;
+    uint8_t                     countries_updated;
     char                      (*tui_chart_worldmap_data)[3];
     int                         tui_chart_worldmap_ccount;
 };
@@ -163,15 +169,16 @@ cb_country(void *field, size_t len, void *data)
     if (!field || !len || WLCSV_STATE_MEMB_GET(upd_ctx->lcsv_stt, row) < 1)
         return;
 
-    char buf[0x1000], out[0x1000];
+    char buf[0x1000];
     char *str = (char *)field, *tmp = upd_ctx->cbdata;
     unsigned current_col = WLCSV_STATE_MEMB_GET(upd_ctx->lcsv_stt, col);
     uint8_t dataset_id = upd_ctx->dataset_id;
     if (dataset_id != DATASET_META) {
-        if (dataset_id == DATASET_CO2E) {
+        if (!upd_ctx->countries_updated) {
             size_t tmp_len = strlen(tmp);
             if (current_col == 1 && tmp_len) {
                 const char *cols, *vals;
+                char insert_sql[0x1000];
                 ht_country_code_st *ccode_entry;
                 HASH_FIND(hh, upd_ctx->ccodes, str, 3, ccode_entry);
                 if (ccode_entry) {
@@ -181,30 +188,35 @@ cb_country(void *field, size_t len, void *data)
                     const char  *independent = ccode_entry->is_independent ? "TRUE" : "FALSE",
                                 *in_tuichart = ccode_entry->in_tui_chart ? "TRUE" : "FALSE";
 
-                    check(SQL_INSERT_INTO(buf, 0xFFF, out, 0xFFF, "Country",
+                    check(SQL_INSERT_INTO(buf, 0xFFF, insert_sql, 0xFFF, "Country",
                         cols, vals, str, iso2, tmp, independent,
                         in_tuichart) >= 0, ERR_FAIL, EMISS_ERR,
                         "printf'ing to buffer");
                 } else {
                     cols = "code_iso_a3, name, in_tui_chart";
                     vals = "'%s', $$%s$$, FALSE";
-                    check(SQL_INSERT_INTO(buf, 0xFFF, out, 0xFFF, "Country",
+                    check(SQL_INSERT_INTO(buf, 0xFFF, insert_sql, 0xFFF, "Country",
                     cols, vals, str, tmp) >= 0, ERR_FAIL, EMISS_ERR,
                     "printf'ing to buffer");
                 }
-				wlpq_query_data_st *query_data = wlpq_query_init(out, 0, 0, 0, 0, 0, 1);
+                insert_sql[strlen(insert_sql) - 1] = '\0';
+                memset(buf, 0, sizeof(buf));
+                check(SQL_INSERT_IF_NCONFLICT(buf, 0xFFF, insert_sql, "code_iso_a3") >= 0,
+                        ERR_FAIL, EMISS_ERR, "printf'ing to buffer");
+				wlpq_query_data_st *query_data = wlpq_query_init(buf, 0, 0, 0, 0, 0, 1);
 				check(query_data, ERR_FAIL, EMISS_ERR, "creating query struct");
 				check(wlpq_query_queue_enqueue(upd_ctx->conn_ctx, query_data),
                     ERR_FAIL, EMISS_ERR, "appending to db job queue");
                 memset(tmp, 0, tmp_len);
                 memcpy(tmp, str, 3);
-            } else {
+            } else
                 memcpy(tmp, str, len);
-            }
-        } else if (current_col == 1) {
+
+        } else if (current_col == 1)
             memcpy(tmp, str, len);
-        }
+
     } else if (len) {
+        char out[0x1000];
         if (!current_col)
             memcpy(tmp, str, len);
         else if (current_col == 1) {
@@ -253,16 +265,16 @@ cb_data(void *field, size_t len, void *data)
             char country_code[4] = {0};
             memcpy(&country_code, tmp, 3);
             set     = "region_id=(SELECT id FROM region_t), "\
-                    "income_id=(SELECT id FROM income_t), "\
-                    "is_an_aggregate=FALSE, metadata=$$%s$$";
+                      "income_id=(SELECT id FROM income_t), "\
+                      "is_an_aggregate=FALSE, metadata=$$%s$$";
             where   = "code_iso_a3='%s'";
             check(SQL_UPDATE_WITH_WHERE(buf, 0x1FFF, out, 0x1FFF,
                 (tmp + 3), "Country", set, where, str, country_code) >= 0,
                 ERR_FAIL, EMISS_ERR, "printf'ing to buffer");
             memset(tmp, 0, tmp_len);
         } else if (tmp_len == 3) {
-            set =   "is_an_aggregate=TRUE, metadata=$$%s$$";
-            where = "code_iso_a3='%s'";
+            set     = "is_an_aggregate=TRUE, metadata=$$%s$$";
+            where   = "code_iso_a3='%s'";
             check(SQL_UPDATE_WHERE(buf, 0x1FFF, out, 0x1FFF,
                 "Country", set, where, str, tmp) >= 0,
                 ERR_FAIL, EMISS_ERR, "printf'ing to buffer");
@@ -271,36 +283,32 @@ cb_data(void *field, size_t len, void *data)
             return;
 		query_data = wlpq_query_init(out, 0, 0, 0, 0, 0, 0);
     } else if (year >= EMISS_YEAR_ZERO && year <= EMISS_YEAR_LAST) {
-        const char *table = "Datapoint",
-                   *cols = "country_code, yeardata_year, %s",
-                   *vals = "'%s', %d, %s";
-        if (dataset_id == DATASET_CO2E) {
-			check(SQL_INSERT_INTO(buf, 0x1FFF, out, 0x1FFF,
-                table, cols, vals, "emission_kt",
-                tmp, year, str) >= 0, ERR_FAIL, EMISS_ERR, "printf'ing to buffer");
-        } else {
-            char insert_sql[0x100];
-            check(SQL_INSERT_INTO(buf, 0x1FFF, insert_sql, 0xFF,
-                table, cols, vals, "population_total", tmp, year,
-                str) >= 0,  ERR_FAIL, EMISS_ERR,
-                "printf'ing to buffer");
-            /*  Remove end-of-query semicolon. */
-            insert_sql[strlen(insert_sql) - 1] = '\0';
-            memset(buf, 0, sizeof(buf));
-            char *arbiter = "country_code, yeardata_year";
-            /*  arbiter: a conflict fires an update instead of insert
-                if a datapoint for this country and year already exists. */
-			set = "population_total=%s";
-            check(SQL_UPSERT(buf, 0x1FFF, out, 0x1FFF, insert_sql,
-                arbiter, set, str) >= 0, ERR_FAIL, EMISS_ERR,
-                "printf'ing to buffer");
-        }
+        const char *table   = "Datapoint",
+                   *cols    = "country_code, yeardata_year, %s",
+                   *vals    = "'%s', %d, %s",
+                   *arbiter = "country_code, yeardata_year",
+                   *set     = "%s=%s";
+        /*  arbiter: a conflict fires an update instead of insert
+            if a datapoint for this country and year already exists. */
+        char insert_sql[0x100];
+        check(SQL_INSERT_INTO(buf, 0x1FFF, insert_sql, 0xFF,
+            table, cols, vals, DATA_COLUMN_NAME(dataset_id),
+            tmp, year, str) >= 0, ERR_FAIL, EMISS_ERR,
+            "printf'ing to buffer");
+        /*  Remove end-of-query semicolon. */
+        insert_sql[strlen(insert_sql) - 1] = '\0';
+        memset(buf, 0, sizeof(buf));
+        check(SQL_UPSERT(buf, 0x1FFF, out, 0x1FFF, insert_sql,
+            arbiter, set, DATA_COLUMN_NAME(dataset_id), str) >= 0,
+            ERR_FAIL, EMISS_ERR, "printf'ing to buffer");
 		query_data = wlpq_query_init(out, 0, 0, 0, 0, 0, 0);
+
     } else
 		return;
 
 	check(query_data, ERR_FAIL, EMISS_ERR, "creating query data struct");
-	check(wlpq_query_queue_enqueue(upd_ctx->conn_ctx, query_data), ERR_FAIL, EMISS_ERR, "appending to db job queue");
+	check(wlpq_query_queue_enqueue(upd_ctx->conn_ctx, query_data),
+            ERR_FAIL, EMISS_ERR, "appending to db job queue");
     return;
 
 error:
@@ -312,58 +320,25 @@ cb_year(void *field, size_t len, void *data)
 {
     emiss_update_ctx_st *upd_ctx = (emiss_update_ctx_st *)data;
     const char *str = (const char *)field;
+    if (upd_ctx->dataset_id == DATASET_POPT) {
+        printf("%s\n", str);
+    }
     int year = atoi(str);
     if (upd_ctx->dataset_id == 1 && (year >= EMISS_YEAR_ZERO && year <= EMISS_YEAR_LAST)) {
-        char buf[0x100], out[0x100];
-        check(SQL_INSERT_INTO(buf, 0xFF, out, 0xFF, "YearData", "year", "%s", str) >= 0,
-            ERR_FAIL, EMISS_ERR, "printf'ing to output");
-		wlpq_query_data_st *query_data = wlpq_query_init(out, 0, 0, 0, 0, 0, 1);
+        char buf[0x100], insert_sql[0x100];
+        check(SQL_INSERT_INTO(buf, 0xFF, insert_sql, 0xFF, "YearData", "year", "%s", str) >= 0,
+                ERR_FAIL, EMISS_ERR, "printf'ing to buffer");
+        insert_sql[strlen(insert_sql) - 1] = '\0';
+        memset(buf, 0, sizeof(buf));
+        check(SQL_INSERT_IF_NCONFLICT(buf, 0xFF, insert_sql, "year") >= 0,
+                ERR_FAIL, EMISS_ERR, "printf'ing to buffer");
+		wlpq_query_data_st *query_data = wlpq_query_init(buf, 0, 0, 0, 0, 0, 1);
 		check(query_data, ERR_FAIL, EMISS_ERR, "creating query data struct");
 		check(wlpq_query_queue_enqueue(upd_ctx->conn_ctx, query_data), ERR_FAIL, EMISS_ERR, "appending to db job queue");
     }
     return;
 error:
     exit(0);
-}
-
-static void
-cb_world_data(void *field, size_t len, void *data)
-{
-    emiss_update_ctx_st *upd_ctx = (emiss_update_ctx_st *)data;
-	unsigned year = EMISS_DATA_STARTS_FROM
-                    + (WLCSV_STATE_MEMB_GET(upd_ctx->lcsv_stt, col)
-                    - 4);
-	if (year < EMISS_YEAR_ZERO || year > EMISS_YEAR_LAST)
-		return;
-
-    char buf[0x1000] = {0};
-    char out[0x1000] = {0};
-    uint8_t dataset_id = upd_ctx->dataset_id;
-    const char *str = (const char *)field,
-               *set =  dataset_id == DATASET_CO2E
-                        ? "world_co2emissions=%s"
-                        : "world_population=%s",
-               *where = "year=%d";
-    check(SQL_UPDATE_WHERE(buf, 0xFFF, out, 0xFFF,
-        "YearData", set, where, str, year) >= 0,
-        ERR_FAIL, EMISS_ERR, "printf'ing to output");
-	wlpq_query_data_st *query_data = wlpq_query_init(out, 0, 0, 0, 0, 0, 0);
-	check(query_data, ERR_FAIL, EMISS_ERR, "creating query data struct");
-	check(wlpq_query_queue_enqueue(upd_ctx->conn_ctx, query_data),
-        ERR_FAIL, EMISS_ERR, "enqueuing query to thread jobs");
-    return;
-error:
-    exit(0);
-}
-
-static void
-cb_world(void *field, size_t len, void *data)
-{
-    emiss_update_ctx_st *upd_ctx = (emiss_update_ctx_st *)data;
-    upd_ctx->callback_ids[4] = wlcsv_callbacks_set(upd_ctx->lcsv_ctx, ROW,
-                                    WLCSV_MATCH_NUM(WLCSV_STATE_MEMB_GET(upd_ctx->lcsv_stt,
-                                    row)), cb_world_data, upd_ctx, 0);
-    memcpy(&upd_ctx->cbdata, data, len);
 }
 
 static void
@@ -386,15 +361,6 @@ static void
 eor_flush_cbdata_buffer(void *data)
 {
     emiss_update_ctx_st *upd_ctx = (emiss_update_ctx_st *)data;
-    wlcsv_ctx_st *wlcsv_ctx = upd_ctx->lcsv_ctx;
-
-    if (!upd_ctx->callback_ids[3] && upd_ctx->cbdata && upd_ctx->cbdata[0] == 'V')
-        upd_ctx->callback_ids[3] = wlcsv_callbacks_set(wlcsv_ctx,
-                                        KEYWORD, WLCSV_MATCH_STR("World"),
-                                        cb_world, upd_ctx, 1);
-    else if (upd_ctx->callback_ids[3] && upd_ctx->cbdata && upd_ctx->cbdata[0] == 'V')
-        wlcsv_callbacks_toggle(wlcsv_ctx, upd_ctx->callback_ids[3]);
-
     memset(upd_ctx->cbdata, 0, strlen(upd_ctx->cbdata));
 }
 
@@ -403,11 +369,12 @@ eor_wait_until_queries_done(void *data)
 {
     emiss_update_ctx_st *upd_ctx = (emiss_update_ctx_st *)data;
     wlcsv_ctx_st *wlcsv_ctx = upd_ctx->lcsv_ctx;
-
-    upd_ctx->callback_ids[1] = wlcsv_callbacks_set(wlcsv_ctx,
-                                    COLUMN, WLCSV_MATCH_NUM(0U),
-                                    cb_country, upd_ctx, 0);
-    upd_ctx->callback_ids[2] = wlcsv_callbacks_set(wlcsv_ctx,
+    if (!upd_ctx->callback_ids[1])
+        upd_ctx->callback_ids[1] = wlcsv_callbacks_set(wlcsv_ctx,
+                                        COLUMN, WLCSV_MATCH_NUM(0U),
+                                        cb_country, upd_ctx, 0);
+    if (!upd_ctx->callback_ids[2])
+        upd_ctx->callback_ids[2] = wlcsv_callbacks_set(wlcsv_ctx,
                                     COLUMN, WLCSV_MATCH_NUM(1U),
                                     cb_country, upd_ctx, 0);
     if (upd_ctx->dataset_id == DATASET_META)
@@ -491,7 +458,7 @@ emiss_update_ctx_init(wlpq_conn_ctx_st *conn_ctx, const char *tui_chart_data)
 
     upd_ctx->conn_ctx = conn_ctx ? conn_ctx : wlpq_conn_ctx_init(0);
     check(upd_ctx->conn_ctx, ERR_FAIL, EMISS_ERR, "setting up database context");
-    upd_ctx->conn_ctx_free_after_use = conn_ctx ? 1 : 0;
+    upd_ctx->conn_ctx_free_after_use = conn_ctx ? 0 : 1;
 
     check(read_tui_chart_worldmap_data(upd_ctx, tui_chart_data),
             ERR_FAIL, EMISS_ERR, "reading tui.chart worldmap data from file");
@@ -513,6 +480,11 @@ emiss_update_parse_send(emiss_update_ctx_st *upd_ctx,
     char **paths, uintmax_t *file_sizes, size_t npaths,
     int *dataset_ids, time_t current_version)
 {
+    printf("%p\n", (void *) upd_ctx->lcsv_ctx);
+    for (size_t i = 0; i < npaths; i++) {
+        printf("%s\n", paths[i]);
+        printf("%d\n", dataset_ids[i]);
+    }
     if (!wlpq_threads_active(upd_ctx->conn_ctx))
         wlpq_threads_launch_async(upd_ctx->conn_ctx);
     upd_ctx->cbdata_max_size = 0x666;
@@ -545,7 +517,7 @@ emiss_update_parse_send(emiss_update_ctx_st *upd_ctx,
                             cb_year, upd_ctx, 0);
     ret = 0;
     size_t retval = 0;
-    for (size_t i = 1; i < npaths; i++) {
+    for (size_t i = 1; i < npaths; ++i) {
         wlcsv_callbacks_eor_set(wlcsv_ctx, eor_wait_until_queries_done);
         wlcsv_callbacks_default_set(wlcsv_ctx, cb_data, upd_ctx);
         check(wlcsv_file_path(wlcsv_ctx, paths[i], strlen(paths[i])),
@@ -565,16 +537,20 @@ emiss_update_parse_send(emiss_update_ctx_st *upd_ctx,
             ret = wlcsv_file_read(wlcsv_ctx, file_sizes[i] ?
                         file_sizes[i] + 10 : default_sz);
             check(ret, ERR_EXTERN, WLCSV, "reading csv file");
+            if (!upd_ctx->countries_updated)
+                upd_ctx->countries_updated = 1;
         } else {
             wlcsv_state_lineskip_set(wlcsv_stt, 0);
-            wlcsv_state_options_set(wlcsv_stt, 1);
+            wlcsv_state_options_set(wlcsv_stt, WLCSV_IGNORE_EMPTY_FIELDS);
             ret = wlcsv_file_read(wlcsv_ctx, file_sizes[i]);
             check(ret, ERR_EXTERN, WLCSV, "reading csv file");
-            wlcsv_callbacks_toggle(wlcsv_ctx, callback_ids[5]);
+            wlcsv_callbacks_clear(wlcsv_ctx, callback_ids[5]);
             callback_ids[5] = 0;
+            wlcsv_state_lineskip_set(wlcsv_stt, 4);
+            wlcsv_state_options_set(wlcsv_stt, WLCSV_IGNORE_EMPTY_FIELDS);
         }
         if (callback_ids[0]) {
-            wlcsv_callbacks_toggle(wlcsv_ctx, callback_ids[0]);
+            wlcsv_callbacks_clear(wlcsv_ctx, callback_ids[0]);
             callback_ids[0] = 0;
         }
         struct timespec timer = (struct timespec){.tv_sec = 1, .tv_nsec = 0};

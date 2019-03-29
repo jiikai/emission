@@ -178,15 +178,13 @@ struct emiss_resource_ctx {
 /*  STATIC  */
 
 static inline int
-run_data_update(emiss_resource_ctx_st *rsrc_ctx,
-    emiss_retrieved_files_st *retrieved_files_data,
+run_data_update(emiss_resource_ctx_st *rsrc_ctx, emiss_file_data_st *retrieved_data,
     const char *tui_chart_data, time_t last_update)
 {
     emiss_update_ctx_st *upd_ctx = emiss_update_ctx_init(rsrc_ctx->conn_ctx, tui_chart_data);
     check(upd_ctx, ERR_FAIL, EMISS_ERR, "initializing update context structure");
-    int dataset_ids[4] = {DATASET_COUNTRY_CODES, DATASET_CO2E, DATASET_POPT, DATASET_META};
-    int ret = emiss_update_parse_send(upd_ctx, retrieved_files_data->paths,
-                    retrieved_files_data->file_sizes, 4, dataset_ids,
+    int ret = emiss_update_parse_send(upd_ctx, retrieved_data->paths,
+                    retrieved_data->file_sizes, 4, retrieved_data->dataset_ids,
                     last_update);
     check(ret != -1, ERR_FAIL, EMISS_ERR, "processing data");
     /*  Log update status to console, update "Updated" time in db and return. */
@@ -195,14 +193,14 @@ run_data_update(emiss_resource_ctx_st *rsrc_ctx,
     strftime(time_str_buf, 0xFF, "%F", gmtime_r(&last_update, &update_time_utc));
     char *cmd;
     if (!ret) {
-        fprintf(stdout, "Data (last checked at %s) was already up to date.", time_str_buf);
+        fprintf(stdout, "Data (last checked at %s) was already up to date.\n", time_str_buf);
         cmd = "INSERT INTO DataUpdate (checked, run) VALUES (TRUE, FALSE);";
     } else {
-        fprintf(stdout, "Data (last checked at %s) was succesfully updated.", time_str_buf);
+        fprintf(stdout, "Data (last checked at %s) was succesfully updated.,\n", time_str_buf);
         cmd = "INSERT INTO DataUpdate (checked, run) VALUES (TRUE, TRUE);";
     }
     check(wlpq_query_run_blocking(rsrc_ctx->conn_ctx, cmd, 0, 0, 0, 0, 0) != -1,
-            ERR_FAIL, EMISS_ERR, "inserting update data to database");
+            ERR_FAIL, EMISS_ERR, "inserting update time to database");
     return ret;
 error:
     return -1;
@@ -313,8 +311,10 @@ error:
 static inline bstring
 frmt_chart_params_js(char *js)
 {
-    return bformat(js, EMISS_YEAR_ZERO, EMISS_YEAR_LAST - 1,
-        EMISS_YEAR_ZERO, EMISS_YEAR_LAST);
+    return bformat(js, EMISS_YEAR_ZERO,
+            EMISS_YEAR_LAST - 1,
+            EMISS_YEAR_ZERO,
+            EMISS_YEAR_LAST);
 }
 
 static inline int
@@ -765,7 +765,6 @@ format_chart_html(emiss_template_st *template_data,
                             qstr);
 }
 
-
 static void
 callback_save_last_updated(PGresult *res, void *arg)
 {
@@ -774,10 +773,6 @@ callback_save_last_updated(PGresult *res, void *arg)
 }
 
 /*  EXTERN INLINE INSTANTIATIONS */
-
-extern inline int
-emiss_resource_should_check_update(wlpq_conn_ctx_st *conn_ctx,
-        wlpq_res_handler_ft *res_handler);
 
 extern inline void
 emiss_resource_template_free(emiss_template_st *template_data);
@@ -826,16 +821,15 @@ emiss_resource_ctx_init()
     check(rsrc_ctx->conn_ctx, ERR_FAIL, EMISS_ERR, "initializing resources: unable to init db");
     wlpq_threads_launch_async(rsrc_ctx->conn_ctx);
 
-    time_t ret = emiss_resource_should_check_update(rsrc_ctx->conn_ctx,
-        (wlpq_res_handler_ft *)callback_save_last_updated);
+    time_t ret = emiss_resource_should_update(rsrc_ctx);
     check(ret != -1, ERR_FAIL, EMISS_ERR, "obtaining update time");
     if (ret) {
-        emiss_retrieved_files_st retrieved_files_data;
-        check(emiss_retrieve_data(&retrieved_files_data) != -1,
-                ERR_FAIL, EMISS_ERR, "retrieving data from a remote source");
-        check(run_data_update(rsrc_ctx, &retrieved_files_data,
-                        "../resources/data/in_tui_chart_map.txt", ret) != -1,
-                        ERR_FAIL, EMISS_ERR, "updating database with retrieved data");
+        emiss_file_data_st retrieved_data;
+        check(emiss_retrieve_data(&retrieved_data), ERR_FAIL, EMISS_ERR,
+                "retrieving data from a remote source");
+        check(run_data_update(rsrc_ctx, &retrieved_data,
+                "../resources/data/in_tui_chart_map.txt", ret) != -1,
+                ERR_FAIL, EMISS_ERR, "updating database with retrieved data");
     }
     rsrc_ctx->cdata = calloc(1, sizeof(struct country_data));
     check(rsrc_ctx->cdata, ERR_MEM, EMISS_ERR);
@@ -846,30 +840,32 @@ emiss_resource_ctx_init()
     check(ret, ERR_FAIL, EMISS_ERR, "initializing resources: failed formatting year data");
 
     size_t nplacehold[EMISS_NTEMPLATES] = {0};
-    rsrc_ctx->static_resource[0]        = read_to_bstring(EMISS_HTML_ROOT"/index.html", 0);
-    rsrc_ctx->static_resource_size[0]   = blength(rsrc_ctx->static_resource[0]);
-
-    bstring new_html                    = read_to_bstring(EMISS_HTML_ROOT"/new.html", 0);
-    rsrc_ctx->static_resource[1]        = frmt_new_chart_html(rsrc_ctx->cdata, bdata(new_html));
-    rsrc_ctx->static_resource_size[1]   = blength(rsrc_ctx->static_resource[1]);
+    rsrc_ctx->static_resource[0] = read_to_bstring(EMISS_HTML_ROOT"/index.html", 0);
+    bstring new_html             = read_to_bstring(EMISS_HTML_ROOT"/new.html", 0);
+    rsrc_ctx->static_resource[1] = frmt_new_chart_html(rsrc_ctx->cdata, bdata(new_html));
     bdestroy(new_html);
+    bstring param_js             = read_to_bstring(EMISS_JS_ROOT"/param.js", 0);
+    rsrc_ctx->static_resource[2] = frmt_chart_params_js(bdata(param_js));
+    bdestroy(param_js);
 
-    bstring chart_params_js             = read_to_bstring(EMISS_JS_ROOT"/param.js", 0);
-    rsrc_ctx->static_resource[2]        = frmt_chart_params_js(bdata(chart_params_js));
-    rsrc_ctx->static_resource_size[2]   = blength(rsrc_ctx->static_resource[2]);
-    bdestroy(chart_params_js);
+    rsrc_ctx->static_resource[3] = read_to_bstring(EMISS_JS_ROOT"/verge.min.js", 0);
+    rsrc_ctx->static_resource[4] = read_to_bstring(EMISS_HTML_ROOT"/about.html", 0);
 
-    rsrc_ctx->static_resource[3]        = read_to_bstring(EMISS_JS_ROOT"/verge.min.js", 0);
-    rsrc_ctx->static_resource_size[3]   = blength(rsrc_ctx->static_resource[3]);
+    memcpy(rsrc_ctx->static_resource_size, (uintmax_t []) {
+        blength(rsrc_ctx->static_resource[0]),
+        blength(rsrc_ctx->static_resource[1]),
+        blength(rsrc_ctx->static_resource[2]),
+        blength(rsrc_ctx->static_resource[3]),
+        blength(rsrc_ctx->static_resource[4]),
+    }, sizeof(uintmax_t) * EMISS_NSTATICS);
 
-    rsrc_ctx->static_resource[4]        = read_to_bstring(EMISS_HTML_ROOT"/about.html", 0);
-    rsrc_ctx->static_resource_size[3]   = blength(rsrc_ctx->static_resource[4]);
+    rsrc_ctx->template[0] = read_to_bstring(EMISS_HTML_ROOT"/show.html", &nplacehold[0]);
+    rsrc_ctx->template[1] = read_to_bstring(EMISS_JS_ROOT"/chart.js", &nplacehold[1]);
 
-    rsrc_ctx->template[0]               = read_to_bstring(EMISS_HTML_ROOT"/show.html",
-                                            &nplacehold[0]);
-    rsrc_ctx->template_frmtless_size[0] = blength(rsrc_ctx->template[0]) - nplacehold[0] * 2;
-    rsrc_ctx->template[1]               = read_to_bstring(EMISS_JS_ROOT"/chart.js", &nplacehold[1]);
-    rsrc_ctx->template_frmtless_size[1] = blength(rsrc_ctx->template[1]) - nplacehold[1] * 2;
+    memcpy(rsrc_ctx->template_frmtless_size, (uintmax_t []) {
+        blength(rsrc_ctx->template[0]) - nplacehold[0] * 2,
+        blength(rsrc_ctx->template[1]) - nplacehold[1] * 2,
+    }, sizeof(uintmax_t) * EMISS_NTEMPLATES);
 
     return rsrc_ctx;
 error:
@@ -902,4 +898,25 @@ emiss_resource_ctx_free(emiss_resource_ctx_st *rsrc_ctx)
 
         free(rsrc_ctx);
     }
+}
+
+int
+emiss_resource_should_update(emiss_resource_ctx_st *rsrc_ctx)
+{
+    if (rsrc_ctx) {
+        time_t current_time, last_updated = 0;
+        int ret = wlpq_query_run_blocking(rsrc_ctx->conn_ctx,
+                    "SELECT EXTRACT(epoch FROM (SELECT max(tmstmp) FROM DataUpdate))::integer;",
+                    0, 0, 0, (wlpq_res_handler_ft *) callback_save_last_updated, &last_updated);
+        if (ret == -1 || last_updated == LONG_MAX)
+            log_err(ERR_FAIL, EMISS_ERR, "obtaining last updated data");
+        else if (time(&current_time) == -1)
+            log_err(ERR_FAIL, EMISS_ERR, "obtaining current time in seconds");
+        else if (difftime(current_time, last_updated) >= EMISS_UPDATE_INTERVAL)
+            return 1;
+        else
+            return 0;
+    } else
+        log_err(ERR_NALLOW, EMISS_ERR, "null resource context parameter");
+    return -1;
 }

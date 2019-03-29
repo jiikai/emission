@@ -11,6 +11,7 @@
 
 #include "wlcsv.h"
 #include <ctype.h>
+#include <stdalign.h>
 #include <stddef.h>
 #include <stdbool.h>
 #include "dbg.h"
@@ -80,6 +81,7 @@ struct wlcsv_ctx {
     char                       *path;
     pcre                       *ignore_regex;
     struct {
+        wlcsv_callback_ft          *preview_callback;
         wlcsv_eor_callback_ft      *eor_callback;
         wlcsv_callback_entry_st    *tbl[WLCSV_NCALLBACKS_MAX];
         uint8_t                     tbl_length;
@@ -104,19 +106,6 @@ file_skip_lines(FILE *fp, int line_offset)
     while (i < line_offset && fgets(buffer, 0xFFF, fp))
         ++i;
     return i;
-}
-
-static inline int
-regex_compile(pcre *rgx, char *str)
-{
-    const char *error_msg;
-    int error_offset;
-    rgx = pcre_compile(str, 0, &error_msg, &error_offset, 0);
-    if (!rgx) {
-        log_err(ERR_EXTERN_AT, "PCRE", error_msg, error_offset);
-        return 0;
-    }
-    return 1;
 }
 
 static inline void
@@ -267,17 +256,16 @@ callbacks_forward(void *field, size_t len, void *data)
 {
     struct wlcsv_ctx *ctx = (struct wlcsv_ctx *)data;
     bool process = !(ctx->state.options & WLCSV_IGNORE_EMPTY_FIELDS) ? true
-                    : field && len ? true : false;
+                    : field && len ? true
+                    : false;
     if (process) {
         const char *str = (const char *)field;
-        if (ctx->ignore_regex) {
+        if (field && len && ctx->ignore_regex) {
             /* Check if this field should be ignored. */
             int ret = pcre_exec(ctx->ignore_regex, 0,
                         str, len, 0, 0, 0, 0);
-            if (ret >= 0) {
-                ctx->state.col++;
-                return;
-            }
+            if (ret >= 0)
+                goto CONTINUE;
             if (ret != PCRE_ERROR_NOMATCH)
                 log_err(ERR_EXTERN_AT, "PCRE", "matching error", ret);
         }
@@ -289,7 +277,15 @@ callbacks_forward(void *field, size_t len, void *data)
         else if (tbl[DEFAULT_CALLBACK_IDX]->function)
             DEFAULT_CALLBACK(tbl, field, len, DEFAULT_CALLBACK_DATA(tbl));
     }
+CONTINUE:
     ctx->state.col++;
+}
+
+static void
+callbacks_forward_preview(void *field, size_t len, void *data)
+{
+    struct wlcsv_ctx *ctx = (struct wlcsv_ctx *)data;
+    ctx->callbacks.preview_callback(field, len, DEFAULT_CALLBACK_DATA(ctx->callbacks.tbl));
 }
 
 static inline void
@@ -301,10 +297,9 @@ callbacks_eor_update_state(wlcsv_ctx_st *ctx, int terminator)
 }
 
 static void
-callbacks_eor(int terminator, void *init_ptr)
+callbacks_eor(int terminator, void *data)
 {
-    struct csv_parser *parser = (struct csv_parser *)init_ptr;
-    struct wlcsv_ctx *ctx = CONTAINER_OF(parser, struct wlcsv_ctx, parser);
+    struct wlcsv_ctx *ctx = (struct wlcsv_ctx *)data;
     uint8_t first_col_match = ctx->callbacks.tbl_idx_type[COLUMN];
     uint8_t *skip_idx = ctx->callbacks.tbl_idx_skip;
     while (!skip_idx[first_col_match]) {
@@ -321,11 +316,12 @@ callbacks_eor(int terminator, void *init_ptr)
 }
 
 static void
-callbacks_eor_preview(int terminator, void *init_ptr)
+callbacks_eor_preview(int terminator, void *data)
 {
-    struct csv_parser *parser = (struct csv_parser *)init_ptr;
-    struct wlcsv_ctx *ctx = CONTAINER_OF(parser, struct wlcsv_ctx, parser);
-    callbacks_eor_update_state(ctx, terminator);
+    struct wlcsv_ctx *ctx = (struct wlcsv_ctx *)data;
+    ctx->state.eor_terminator = terminator;
+    ctx->state.col = 0;
+    ctx->state.row++;
 }
 
 /*  IMPLEMENTATIONS FOR FUNCTION PROTOTYPES */
@@ -361,10 +357,15 @@ wlcsv_init(char *ignore_rgx, wlcsv_callback_ft *default_callback,
     check(ctx, ERR_MEM, WLCSV);
     memset(ctx, 0, sizeof(struct wlcsv_ctx));
 
-    ctx->ignore_regex = NULL;
-    check(!ignore_rgx || regex_compile(ctx->ignore_regex, ignore_rgx),
-        ERR_FAIL, WLCSV, "compiling regex");
-
+    ctx->ignore_regex = 0;
+    if (ignore_rgx) {
+        const char *error_msg;
+        int error_offset;
+        ctx->ignore_regex = pcre_compile(ignore_rgx, 0, &error_msg, &error_offset, 0);
+        if (!ctx->ignore_regex)
+            log_err(ERR_EXTERN_AT, "PCRE", error_msg, error_offset);
+    }
+    memset(&ctx->state, 0, sizeof(ctx->state));
     memset(&ctx->callbacks, 0, sizeof(ctx->callbacks));
     ctx->callbacks.tbl_length            =  callback_tbl_size;
     ctx->callbacks.tbl_idx_type[KEYWORD] = 1;
@@ -435,6 +436,7 @@ wlcsv_file_preview(struct wlcsv_ctx *ctx, unsigned nrows, size_t buf_size,
         log_err(ERR_NALLOW, WLCSV, !ctx ? "NULL ctx parameter" : "file path not set");
         return 0;
     }
+    ctx->callbacks.preview_callback = callback;
     FILE *fp = NULL;
     void *buffer = NULL;
     fp = fopen(ctx->path, "r");
@@ -466,13 +468,14 @@ wlcsv_file_preview(struct wlcsv_ctx *ctx, unsigned nrows, size_t buf_size,
         ++i;
     }
     fclose(fp);
-    size_t parsed = csv_parse(&ctx->parser,
-                        buffer, i, callback,
+    size_t parsed = csv_parse(&ctx->parser, buffer, i,
+                        callbacks_forward_preview,
                         callbacks_eor_preview,
-                        DEFAULT_CALLBACK_DATA(ctx->callbacks.tbl));
+                        ctx);
     check(parsed == i, ERR_EXTERN, "libcsv", csv_strerror(csv_error(&ctx->parser)));
     csv_fini(&ctx->parser, callback, callbacks_eor, DEFAULT_CALLBACK_DATA(ctx->callbacks.tbl));
     free(buffer);
+    ctx->callbacks.preview_callback = 0;
     return parsed;
 error:
     if (fp)
@@ -516,7 +519,6 @@ wlcsv_file_read(struct wlcsv_ctx *ctx, size_t buf_size)
         check(buffer, ERR_MEM, WLCSV);
         read += fread((uint8_t *)buffer + (buf_size / 2), 1, buf_size, fp);
     }
-    printf("read %lu bytes\n", (unsigned long) read);
     if (feof(fp)) {
         parsed = csv_parse(&ctx->parser,
                     buffer, read, callbacks_forward,
@@ -628,10 +630,12 @@ wlcsv_callbacks_set(struct wlcsv_ctx *ctx,
         entry->key = calloc(len + 1, sizeof(char));
         check(entry->key, ERR_MEM, WLCSV);
         memcpy(entry->key, match_to->key_or_rgx, len);
-    } else
-        check(regex_compile(entry->rgx, match_to->key_or_rgx),
-            ERR_FAIL, WLCSV, "compiling regex");
-
+    } else {
+        const char *error_msg;
+        int error_offset;
+        entry->rgx = pcre_compile(match_to->key_or_rgx, 0, &error_msg, &error_offset, 0);
+        check(entry->rgx, ERR_FAIL, WLCSV, "compiling regex");
+    }
     return callbacks_enlist(ctx, entry);
 error:
     return UINT8_MAX;
@@ -659,8 +663,16 @@ wlcsv_ignore_regex_set(struct wlcsv_ctx *ctx, char *regex)
     }
     if (ctx->ignore_regex)
         pcre_free(ctx->ignore_regex);
-    ctx->ignore_regex = NULL;
-    return regex && !regex_compile(ctx->ignore_regex, regex) ? -1 : 1;
+    ctx->ignore_regex = 0;
+    if (regex) {
+        const char *error_msg;
+        int error_offset;
+        ctx->ignore_regex = pcre_compile(regex, 0, &error_msg, &error_offset, 0);
+        check(ctx->ignore_regex, ERR_EXTERN_AT, "PCRE", error_msg, error_offset);
+    }
+    return 1;
+error:
+    return -1;
 }
 
 wlcsv_state_st *

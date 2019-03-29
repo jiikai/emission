@@ -34,6 +34,9 @@
     snprintf(buf, buf_n, "INSERT INTO %s (%s) VALUES (%s);", table, columns, values) < 0 ? -1 :\
     snprintf(out, out_n,  buf, __VA_ARGS__)
 
+#define SQL_INSERT_IF_NCONFLICT(out, out_n, insertsql, arbiter)\
+    snprintf(out, out_n, "%s ON CONFLICT (%s) DO NOTHING;", insertsql, arbiter)
+
 #define SQL_UPDATE_WHERE(buf, buf_n, out, out_n, table, set, where, ...)\
     snprintf(buf, buf_n, "UPDATE %s SET %s WHERE %s;", table, set, where) < 0 ? -1 :\
     snprintf(out, out_n, buf, __VA_ARGS__)

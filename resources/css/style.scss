@@ -125,7 +125,7 @@ option {
   text-align: center;
   user-select: none;
   width: auto;
-  &:active, &focus {
+  &:active, &:focus {
     background-color: $color-bg-btn-active;
     border-color: $color-border-btn-active;
     color: $color-fg-btn-active;

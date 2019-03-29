@@ -161,10 +161,24 @@ inl_free_query_thread_ctx(struct query_thread_ctx *thrd_ctx)
 static inline PGconn *
 inl_open_noblock_conn_start(char *conn_info)
 {
-    struct timespec timer = TIMESPEC_INIT_S_MS(0, 10);
-    while (PQping(conn_info) != PQPING_OK)
-        nanosleep(&timer, NULL);
-    return PQconnectStart(conn_info);
+    char *err_msg = "undefined error";
+    switch (PQping(conn_info)) {
+        case PQPING_OK:
+            return PQconnectStart(conn_info);
+        case PQPING_REJECT:
+            err_msg = "pinging server: new connections not allowed";
+            break;
+        case PQPING_NO_RESPONSE:
+            err_msg = "Pinging server: no response";
+            break;
+        case PQPING_NO_ATTEMPT:
+            err_msg = "Pinging server: incorrect parameters or other client-side problem";
+            break;
+        default: // This should not happen
+            break;
+    }
+    log_err(ERR_FAIL, WLPQ, err_msg);
+    return 0;
 }
 
 static inline int
@@ -210,8 +224,9 @@ open_noblock_conn(char *conn_info)
 {
     PGconn *conn = inl_open_noblock_conn_start(conn_info);
     check(conn, ERR_MEM, WLPQ);
-    int ret = inl_open_noblock_conn_poll(conn, PQconnectPoll);
-    check(ret, ERR_FAIL, WLPQ, "opening a non-blocking connection");
+    check(PQstatus(conn) != CONNECTION_BAD, ERR_FAIL, WLPQ, "connecting to server");
+    check(inl_open_noblock_conn_poll(conn, PQconnectPoll),
+            ERR_FAIL, WLPQ, "opening a non-blocking connection");
     return conn;
 error:
     if (conn)
@@ -425,7 +440,6 @@ send_poll_loop(void *arg)
         log_err(ERR_MEM, WLPQ);
         goto EXIT;
     }
-
     /*  Set an interval for waiting on
         1) a busy connection, as per PQisbusy(),
         2) an ENOMEM error from poll(). */
@@ -588,8 +602,9 @@ init_query_thread_ctx(wlpq_conn_ctx_st *conn_ctx, uint8_t nthread)
     check(thrd_ctx->pgconn_qr_dt, ERR_MEM, WLPQ);
     for (size_t i = 0; i < nconn; i++) {
         thrd_ctx->pgconn[i] = inl_open_noblock_conn_start(conn_ctx->db_url);
-        check(thrd_ctx->pgconn[i], ERR_FAIL, WLPQ,
-            "sending request for a non-blocking connection");
+        check(thrd_ctx->pgconn[i], ERR_MEM, WLPQ);
+        check(PQstatus(thrd_ctx->pgconn[i]) != CONNECTION_BAD,
+                ERR_FAIL, WLPQ, "sending request for a non-blocking connection");
         thrd_ctx->pgconn_iostate[i] = PGCONN_IOSTATE_IDLE;
     }
     return thrd_ctx;
@@ -823,7 +838,7 @@ int
 wlpq_threads_launch_async(wlpq_conn_ctx_st *conn_ctx)
 {
     pthread_attr_t attr;
-	int ret = inl_init_thread_attr(&attr, PTHREAD_CREATE_JOINABLE);
+	int ret = inl_init_thread_attr(&attr, PTHREAD_CREATE_DETACHED);
     check(ret, ERR_FAIL, WLPQ, "initializing thread attribute object");
     pthread_t thrd_id = 0;
     ret = pthread_create(&thrd_id, &attr, threads_launch_async_start, conn_ctx);

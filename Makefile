@@ -12,13 +12,13 @@ STD := -std=c11 -pedantic
 STACK := -fstack-protector -Wstack-protector
 WARNS := -Wall -Wextra
 DEBUG := -g
-CFLAGS := -O2 -pthread -rdynamic $(INCLUDE) $(STD) $(STACK) $(WARNS) $(OPTFLAGS)
-LIBS := -ldl -lpthread -lpq -lpcre -lcurl -lm $(LIBINCLUDE) $(OPTLIBS)
+CFLAGS := -O3 -g -pthread $(INCLUDE) $(STD) $(STACK) $(WARNS) $(OPTFLAGS)
+LIBS := -ldl -lm -lpthread -lcurl -lpcre -lpq $(LIBINCLUDE) $(OPTLIBS)
 TESTLIBS := $(LIBS)
 SRCS := $(wildcard $(SRCDIR)/dep/*.c $(SRCDIR)/*.c)
 TEST_SRCS= $(wildcard $(TESTDIR)/*_test.c)
-OBJECTS :=$(patsubst %.c,$(LIBDIR)/%.o,$(SRCS))
-TEST_OBJECTS :=$(patsubst %.c,%.o,$(TEST_SRCS))
+OBJECTS := $(patsubst %.c,$(LIBDIR)/%.o,$(SRCS))
+TEST_OBJECTS := $(patsubst %.c,%.o,$(TEST_SRCS))
 MAIN_BINS := $(BINDIR)/emiss
 TEST_BINS := $(patsubst %.c,%,$(TEST_SRCS))
 
@@ -29,7 +29,7 @@ TEST_BINS := $(patsubst %.c,%,$(TEST_SRCS))
 default: all
 
 all: $(BINDIR)
-	$(CC) $(CFLAGS) $(SRCS) -DHEROKU -o $(MAIN_BINS) $(LIBS)
+	$(CC) $(CFLAGS) $(SRCS) -DNDEBUG -DHEROKU -o $(MAIN_BINS) $(LIBS)
 
 $(BINDIR):
 	mkdir $@

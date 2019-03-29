@@ -139,7 +139,7 @@
 #ifndef EMISS_IGNORE_REGEX
     #define EMISS_IGNORE_REGEX\
         "((Country|Indicator)( Code| Name))"\
-        "|(Population.*|CO2 emissions.*|Region|IncomeGroup|SpecialNotes|WLD|INX|Not classified)"\
+        "|(Population.*|CO2 emissions.*|Region|IncomeGroup|SpecialNotes|INX|Not classified)"\
         "|(\\w+\\.\\w+\\.\\w+)"
 #endif
 
@@ -223,16 +223,16 @@ struct emiss_template_s {
     emiss_printfio_ft              *output_function;
 };
 
-typedef struct emiss_retrieved_files {
+typedef struct emiss_file_data {
     char      *paths[EMISS_NINDICATORS + 1];
-    uintmax_t  file_sizes[EMISS_NINDICATORS];
-} emiss_retrieved_files_st;
+    uintmax_t  file_sizes[EMISS_NINDICATORS + 1];
+    int        dataset_ids[EMISS_NINDICATORS + 1];
+} emiss_file_data_st;
 
 /*! An opaque handle for the server context structure.
     Implemented in emiss_server.c.
 */
 typedef struct emiss_server_ctx emiss_server_ctx_st;
-
 
 
 /*
@@ -246,7 +246,7 @@ typedef struct emiss_server_ctx emiss_server_ctx_st;
     @see emiss_should_check_for_update()
 */
 int
-emiss_retrieve_data(emiss_retrieved_files_st *retrieved_files_data);
+emiss_retrieve_data(emiss_file_data_st *retrieved_files_data);
 
 void *
 emiss_retrieve_async_start();
@@ -322,27 +322,6 @@ emiss_resource_ctx_free(emiss_resource_ctx_st *rsrc_ctx);
 emiss_resource_ctx_st *
 emiss_resource_ctx_init();
 
-/*! */
-inline int
-emiss_resource_should_check_update(wlpq_conn_ctx_st *conn_ctx,
-    wlpq_res_handler_ft *res_handler)
-{
-    time_t current_time, last_updated = 0;
-    int ret = wlpq_query_run_blocking(conn_ctx,
-                        "SELECT EXTRACT(epoch FROM (SELECT max(tmstmp) FROM DataUpdate))::integer;",
-                        0, 0, 0, (wlpq_res_handler_ft *)
-                        res_handler, &last_updated);
-    if (ret == -1 || last_updated == LONG_MAX)
-        log_err(ERR_FAIL, EMISS_ERR, "obtaining last updated data");
-    else if (time(&current_time) == -1)
-        log_err(ERR_FAIL, EMISS_ERR, "obtaining current time in seconds");
-    else if (difftime(current_time, last_updated) >= EMISS_UPDATE_INTERVAL)
-        return 1;
-    else
-        return 0;
-    return -1;
-}
-
 /*! Return a pointer to a static asset stored in memory.
 
     @param rsrc_ctx: An initialized resource context structure.
@@ -401,6 +380,19 @@ emiss_resource_template_init(emiss_resource_ctx_st *rsrc_ctx);
 
     @see emiss_init_server_ctx(), emiss_server_run()
 */
+
+/*! Check the date data updates were last checked.
+
+    @param conn_ctx     Pointer to an initialized wlpq database connection context.
+    @param res_handler  Result set handler callback.
+
+    @return 1 if updates were checked more than, 0 if less than, EMISS_UPDATE_INTERVAL seconds ago, or -1 on error.
+
+    @see emiss_resource_ctx_init()
+*/
+int
+emiss_resource_should_update(emiss_resource_ctx_st *rsrc_ctx);
+
 void
 emiss_server_ctx_free(emiss_server_ctx_st *server_ctx);
 
@@ -415,8 +407,6 @@ emiss_server_ctx_free(emiss_server_ctx_st *server_ctx);
 */
 emiss_server_ctx_st *
 emiss_server_ctx_init(emiss_template_st *template_data);
-
-
 
 /*! Run server in an event loop until a terminating signal/request is received.
 
