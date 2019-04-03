@@ -655,10 +655,8 @@ retrieve_matching_data(emiss_template_st *template_data, unsigned from_year,
         char  **names             = rsrc_ctx->cdata->name;
         size_t  ccount            = rsrc_ctx->cdata->ccount,
                 names_bytelength  = 0;
-        char *ptr                 = country_codes;
-
-        for (size_t i = 0; i < ncountries; ++i) {
-            ptr = strchr(ptr, '=') + 1;
+        char *ptr                 = strchr(country_codes, '=') + 1;
+        for (size_t i = 0; ptr && i < ncountries; ++i) {
             char code[4] = {0};
             memcpy(code, ptr, 3);
             check(SQL_SELECT_JOIN_WHERE(buf, 0x5FF, out, 0x5FF,
@@ -682,6 +680,7 @@ retrieve_matching_data(emiss_template_st *template_data, unsigned from_year,
                 log_warn(ERR_FAIL_A, EMISS_ERR, "finding country name for code", code);
             memset(buf, 0, sizeof(buf));
             memset(out, 0, sizeof(out));
+            ptr = strchr(ptr, '=') + 1;
         }
         return frmt_line_chart_data(template_data, from_year, to_year,
                     res_dest_arr, ncountries, names_bytelength,
